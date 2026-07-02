@@ -15,9 +15,9 @@
 package raftio
 
 import (
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (

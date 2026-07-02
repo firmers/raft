@@ -17,11 +17,11 @@ package logdb
 import (
 	"math"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/logdb/kv"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 //

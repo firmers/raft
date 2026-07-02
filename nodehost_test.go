@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"bytes"
@@ -33,32 +33,32 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/leaktest"
 	"github.com/lni/goutils/random"
 	"github.com/lni/goutils/syncutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/invariants"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/tests"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	chantrans "github.com/lni/dragonboat/v4/plugin/chan"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
-	"github.com/lni/dragonboat/v4/tools"
-	"github.com/lni/dragonboat/v4/tools/upgrade310"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/id"
+	"github.com/firmers/raft/internal/invariants"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/registry"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/tests"
+	"github.com/firmers/raft/internal/transport"
+	chantrans "github.com/firmers/raft/plugin/chan"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
+	"github.com/firmers/raft/tools"
+	"github.com/firmers/raft/tools/upgrade310"
 )
 
 const (
@@ -84,7 +84,7 @@ var mu sync.Mutex
 
 var rttValues = []uint64{10, 20, 30, 50, 100, 200, 500}
 
-func getRTTMillisecond(fs vfs.IFS, dir string) uint64 {
+func getRTTMillisecond(fs vfs.FS, dir string) uint64 {
 	mu.Lock()
 	defer mu.Unlock()
 	if rttMillisecond > 0 {
@@ -94,7 +94,7 @@ func getRTTMillisecond(fs vfs.IFS, dir string) uint64 {
 	return rttMillisecond
 }
 
-func calcRTTMillisecond(fs vfs.IFS, dir string) uint64 {
+func calcRTTMillisecond(fs vfs.FS, dir string) uint64 {
 	testFile := fs.PathJoin(dir, ".dragonboat_test_file_safe_to_delete")
 	defer func() {
 		_ = fs.RemoveAll(testFile)
@@ -151,18 +151,18 @@ func lpto(nh *NodeHost) time.Duration {
 	return time.Duration(rtt*100) * time.Millisecond
 }
 
-func getTestExpertConfig(fs vfs.IFS) config.ExpertConfig {
+func getTestExpertConfig(fs vfs.FS) config.ExpertConfig {
 	cfg := config.GetDefaultExpertConfig()
 	cfg.LogDB.Shards = 4
 	cfg.FS = fs
 	return cfg
 }
 
-func reportLeakedFD(fs vfs.IFS, t *testing.T) {
+func reportLeakedFD(fs vfs.FS, t *testing.T) {
 	vfs.ReportLeakedFD(fs, t)
 }
 
-func getTestNodeHostConfig(fs vfs.IFS) *config.NodeHostConfig {
+func getTestNodeHostConfig(fs vfs.FS) *config.NodeHostConfig {
 	cfg := &config.NodeHostConfig{
 		WALDir:              singleNodeHostTestDir,
 		NodeHostDir:         singleNodeHostTestDir,
@@ -563,7 +563,7 @@ func createSingleTestNode(t *testing.T, to *testOption, nh *NodeHost) {
 	}
 }
 
-func runNodeHostTest(t *testing.T, to *testOption, fs vfs.IFS) {
+func runNodeHostTest(t *testing.T, to *testOption, fs vfs.FS) {
 	func() {
 		if !to.fsErrorInjection {
 			defer leaktest.AfterTest(t)()
@@ -666,7 +666,7 @@ func createProposalsToTriggerSnapshot(t *testing.T,
 func runNodeHostTestDC(t *testing.T,
 	f func(),
 	removeDir bool,
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	defer leaktest.AfterTest(t)()
 	defer func() {
 		require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))
@@ -694,7 +694,7 @@ func (t *testLogDBFactory) Name() string {
 }
 
 func TestLogDBCanBeExtended(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	ldb := &noopLogDB{}
 	to := &testOption{
 		updateNodeHostConfig: func(
@@ -712,10 +712,10 @@ func TestLogDBCanBeExtended(t *testing.T) {
 }
 
 func TestTCPTransportIsUsedByDefault(t *testing.T) {
-	if vfs.GetTestFS() != vfs.DefaultFS {
+	if vfs.NewStrictMem() != vfs.Default {
 		t.Skip("memfs test mode, skipped")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		tf: func(nh *NodeHost) {
 			tt := nh.transport.(*transport.Transport)
@@ -739,7 +739,7 @@ func (noopTransportFactory) Validate(string) bool {
 }
 
 func TestTransportFactoryIsStillHonored(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateNodeHostConfig: func(
 			nhc *config.NodeHostConfig) *config.NodeHostConfig {
@@ -756,7 +756,7 @@ func TestTransportFactoryIsStillHonored(t *testing.T) {
 }
 
 func TestTransportFactoryCanBeSet(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateNodeHostConfig: func(
 			nhc *config.NodeHostConfig) *config.NodeHostConfig {
@@ -786,7 +786,7 @@ func (tm *validatorTestModule) Validate(addr string) bool {
 }
 
 func TestAddressValidatorCanBeSet(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateNodeHostConfig: func(
@@ -831,7 +831,7 @@ func TestMediumSizedClusterGossip(t *testing.T) {
 	}
 	defer leaktest.AfterTest(t)()
 	for i := 0; i < 16; i++ {
-		fs := vfs.GetTestFS()
+		fs := vfs.NewStrictMem()
 		dir := fs.PathJoin(singleNodeHostTestDir, fmt.Sprintf("nh%d", i))
 		cfg := config.NodeHostConfig{
 			NodeHostDir:                dir,
@@ -867,7 +867,7 @@ func TestCustomTransportCanGoWithoutNodeHostID(t *testing.T) {
 func testDefaultNodeRegistryEnabled(t *testing.T,
 	addressByNodeHostID bool,
 	factory config.TransportFactory) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	datadir1 := fs.PathJoin(singleNodeHostTestDir, "nh1")
 	datadir2 := fs.PathJoin(singleNodeHostTestDir, "nh2")
 	require.NoError(t, os.RemoveAll(singleNodeHostTestDir))
@@ -962,7 +962,7 @@ func testDefaultNodeRegistryEnabled(t *testing.T,
 }
 
 func TestNodeHostRegistry(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	datadir1 := fs.PathJoin(singleNodeHostTestDir, "nh1")
 	datadir2 := fs.PathJoin(singleNodeHostTestDir, "nh2")
 	require.NoError(t, os.RemoveAll(singleNodeHostTestDir))
@@ -1074,7 +1074,7 @@ func TestNodeHostRegistry(t *testing.T) {
 }
 
 func TestGossipCanHandleDynamicRaftAddress(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	datadir1 := fs.PathJoin(singleNodeHostTestDir, "nh1")
 	datadir2 := fs.PathJoin(singleNodeHostTestDir, "nh2")
 	require.NoError(t, os.RemoveAll(singleNodeHostTestDir))
@@ -1214,7 +1214,7 @@ func (trf *testRegistryFactory) Create(nhid string,
 }
 
 func TestExternalNodeRegistryFunction(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	datadir1 := fs.PathJoin(singleNodeHostTestDir, "nh1")
 	datadir2 := fs.PathJoin(singleNodeHostTestDir, "nh2")
 	require.NoError(t, os.RemoveAll(singleNodeHostTestDir))
@@ -1309,7 +1309,7 @@ func TestExternalNodeRegistryFunction(t *testing.T) {
 }
 
 func TestNewNodeHostReturnErrorOnInvalidConfig(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateNodeHostConfig: func(
 			nhc *config.NodeHostConfig) *config.NodeHostConfig {
@@ -1323,7 +1323,7 @@ func TestNewNodeHostReturnErrorOnInvalidConfig(t *testing.T) {
 }
 
 func TestDeploymentIDCanBeSetUsingNodeHostConfig(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateNodeHostConfig: func(
 			nhc *config.NodeHostConfig) *config.NodeHostConfig {
@@ -1428,7 +1428,7 @@ func createConcurrentTestNodeHost(addr string,
 	datadir string,
 	snapshotEntry uint64,
 	concurrent bool,
-	fs vfs.IFS) (*NodeHost, error) {
+	fs vfs.FS) (*NodeHost, error) {
 	// config for raft
 	rc := config.Config{
 		ReplicaID:          uint64(1),
@@ -1483,7 +1483,7 @@ func singleConcurrentNodeHostTest(t *testing.T,
 	tf func(t *testing.T, nh *NodeHost),
 	snapshotEntry uint64,
 	concurrent bool,
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	defer func() {
 		require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))
 	}()
@@ -1506,7 +1506,7 @@ func singleConcurrentNodeHostTest(t *testing.T,
 
 func twoFakeDiskNodeHostTest(t *testing.T,
 	tf func(t *testing.T, nh1 *NodeHost, nh2 *NodeHost),
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	defer func() {
 		require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))
 	}()
@@ -1531,7 +1531,7 @@ func createFakeDiskTwoTestNodeHosts(addr1 string,
 	addr2 string,
 	datadir1 string,
 	datadir2 string,
-	fs vfs.IFS) (*NodeHost, *NodeHost, error) {
+	fs vfs.FS) (*NodeHost, *NodeHost, error) {
 	peers := make(map[uint64]string)
 	peers[1] = addr1
 	nhc1 := config.NodeHostConfig{
@@ -1565,7 +1565,7 @@ func createRateLimitedTwoTestNodeHosts(addr1 string,
 	addr2 string,
 	datadir1 string,
 	datadir2 string,
-	fs vfs.IFS) (*NodeHost, *NodeHost, *tests.NoOP, *tests.NoOP, error) {
+	fs vfs.FS) (*NodeHost, *NodeHost, *tests.NoOP, *tests.NoOP, error) {
 	rc := config.Config{
 		ShardID:         1,
 		ElectionRTT:     3,
@@ -1643,7 +1643,7 @@ func rateLimitedTwoNodeHostTest(t *testing.T,
 		followerNh *NodeHost,
 		n1 *tests.NoOP,
 		n2 *tests.NoOP),
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	defer func() {
 		require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))
 	}()
@@ -1679,7 +1679,7 @@ func waitForLeaderToBeElected(t *testing.T, nh *NodeHost, shardID uint64) {
 }
 
 func TestJoinedShardCanBeRestartedOrJoinedAgain(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -1707,7 +1707,7 @@ func TestJoinedShardCanBeRestartedOrJoinedAgain(t *testing.T) {
 }
 
 func TestCompactionCanBeRequested(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateConfig: func(c *config.Config) *config.Config {
@@ -1751,7 +1751,7 @@ func TestCompactionCanBeRequested(t *testing.T) {
 }
 
 func TestSnapshotCanBeStopped(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	pst := &PST{slowSave: true}
 	to := &testOption{
 		updateConfig: func(c *config.Config) *config.Config {
@@ -1772,7 +1772,7 @@ func TestSnapshotCanBeStopped(t *testing.T) {
 }
 
 func TestRecoverFromSnapshotCanBeStopped(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	pst := &PST{slowSave: false}
 	to := &testOption{
 		updateConfig: func(c *config.Config) *config.Config {
@@ -1861,7 +1861,7 @@ func TestGetRequestStateTimeoutAndCancel(t *testing.T) {
 }
 
 func TestNodeHostIDIsStatic(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	id := ""
 	to := &testOption{
 		restartNodeHost: true,
@@ -1877,7 +1877,7 @@ func TestNodeHostIDIsStatic(t *testing.T) {
 }
 
 func TestNodeHostIDCanBeSet(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	nhidStr := testNodeHostID1
 	to := &testOption{
 		updateNodeHostConfig: func(c *config.NodeHostConfig) *config.NodeHostConfig {
@@ -1895,7 +1895,7 @@ func TestNodeHostIDCanBeSet(t *testing.T) {
 }
 
 func TestInvalidAddressIsRejected(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -1910,7 +1910,7 @@ func TestInvalidAddressIsRejected(t *testing.T) {
 }
 
 func TestInvalidContextDeadlineIsReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -1946,7 +1946,7 @@ func TestInvalidContextDeadlineIsReported(t *testing.T) {
 }
 
 func TestErrShardNotFoundCanBeReturned(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -1980,7 +1980,7 @@ func TestErrShardNotFoundCanBeReturned(t *testing.T) {
 }
 
 func TestGetShardMembership(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -1995,7 +1995,7 @@ func TestGetShardMembership(t *testing.T) {
 }
 
 func TestRegisterASessionTwiceWillBeReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2016,7 +2016,7 @@ func TestRegisterASessionTwiceWillBeReported(t *testing.T) {
 }
 
 func TestUnregisterNotRegisterClientSessionWillBeReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2035,7 +2035,7 @@ func TestUnregisterNotRegisterClientSessionWillBeReported(t *testing.T) {
 }
 
 func TestSnapshotFilePayloadChecksumIsSaved(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateConfig: func(c *config.Config) *config.Config {
@@ -2079,7 +2079,7 @@ func TestSnapshotFilePayloadChecksumIsSaved(t *testing.T) {
 
 func testZombieSnapshotDirWillBeDeletedDuringAddShard(t *testing.T,
 	dirName string,
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	var z1 string
 	to := &testOption{
 		defaultTestNode: true,
@@ -2093,14 +2093,14 @@ func testZombieSnapshotDirWillBeDeletedDuringAddShard(t *testing.T,
 		},
 		rf: func(nh *NodeHost) {
 			_, err := fs.Stat(z1)
-			require.True(t, vfs.IsNotExist(err), "failed to delete zombie dir")
+			require.True(t, errors.IsNotExist(err), "failed to delete zombie dir")
 		},
 	}
 	runNodeHostTest(t, to, fs)
 }
 
 func TestZombieSnapshotDirWillBeDeletedDuringAddShard(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	testZombieSnapshotDirWillBeDeletedDuringAddShard(t,
 		"snapshot-AB-01.receiving", fs)
@@ -2109,7 +2109,7 @@ func TestZombieSnapshotDirWillBeDeletedDuringAddShard(t *testing.T) {
 }
 
 func TestNodeHostReadIndex(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2127,7 +2127,7 @@ func TestNodeHostReadIndex(t *testing.T) {
 }
 
 func TestNALookupCanReturnErrNotImplemented(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2144,7 +2144,7 @@ func TestNALookupCanReturnErrNotImplemented(t *testing.T) {
 }
 
 func TestNodeHostSyncIOAPIs(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2172,7 +2172,7 @@ func TestNodeHostSyncIOAPIs(t *testing.T) {
 }
 
 func TestEntryCompression(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateConfig: func(c *config.Config) *config.Config {
@@ -2206,7 +2206,7 @@ func TestEntryCompression(t *testing.T) {
 }
 
 func TestOrderedMembershipChange(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateConfig: func(c *config.Config) *config.Config {
@@ -2239,7 +2239,7 @@ func TestOrderedMembershipChange(t *testing.T) {
 }
 
 func TestSyncRequestDeleteReplica(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2260,7 +2260,7 @@ func TestSyncRequestDeleteReplica(t *testing.T) {
 }
 
 func TestSyncRequestAddReplica(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2275,7 +2275,7 @@ func TestSyncRequestAddReplica(t *testing.T) {
 }
 
 func TestSyncRequestAddNonVoting(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2290,7 +2290,7 @@ func TestSyncRequestAddNonVoting(t *testing.T) {
 }
 
 func TestNodeHostAddReplica(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2305,7 +2305,7 @@ func TestNodeHostAddReplica(t *testing.T) {
 }
 
 func TestNodeHostGetNodeUser(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2321,7 +2321,7 @@ func TestNodeHostGetNodeUser(t *testing.T) {
 }
 
 func TestNodeHostNodeUserPropose(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2339,7 +2339,7 @@ func TestNodeHostNodeUserPropose(t *testing.T) {
 }
 
 func TestNodeHostNodeUserRead(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2356,7 +2356,7 @@ func TestNodeHostNodeUserRead(t *testing.T) {
 }
 
 func TestNodeHostAddNonVotingRemoveNode(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2396,7 +2396,7 @@ func TestNodeHostAddNonVotingRemoveNode(t *testing.T) {
 // FIXME:
 // Leadership transfer is not actually tested
 func TestNodeHostLeadershipTransfer(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2408,7 +2408,7 @@ func TestNodeHostLeadershipTransfer(t *testing.T) {
 }
 
 func TestNodeHostHasNodeInfo(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -2420,7 +2420,7 @@ func TestNodeHostHasNodeInfo(t *testing.T) {
 }
 
 func TestOnDiskStateMachineDoesNotSupportClientSession(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		fakeDiskNode: true,
 		tf: func(nh *NodeHost) {
@@ -2437,7 +2437,7 @@ func TestOnDiskStateMachineDoesNotSupportClientSession(t *testing.T) {
 }
 
 func TestStaleReadOnUninitializedNodeReturnError(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	fakeDiskSM := tests.NewFakeDiskSM(0)
 	atomic.StoreUint32(&fakeDiskSM.SlowOpen, 1)
 	to := &testOption{
@@ -2465,7 +2465,7 @@ func TestStaleReadOnUninitializedNodeReturnError(t *testing.T) {
 }
 
 func TestStartReplicaWaitForReadiness(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	fakeDiskSM := tests.NewFakeDiskSM(0)
 	atomic.StoreUint32(&fakeDiskSM.SlowOpen, 1)
 	to := &testOption{
@@ -2515,7 +2515,7 @@ func TestStartReplicaWaitForReadiness(t *testing.T) {
 }
 
 func testOnDiskStateMachineCanTakeDummySnapshot(t *testing.T, compressed bool) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		fakeDiskNode: true,
 		compressed:   compressed,
@@ -2573,7 +2573,7 @@ func TestOnDiskStateMachineCanTakeDummySnapshot(t *testing.T) {
 }
 
 func TestOnDiskSMCanStreamSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh1 *NodeHost, nh2 *NodeHost) {
 		rc := config.Config{
 			ShardID:                 1,
@@ -2695,7 +2695,7 @@ func TestOnDiskSMCanStreamSnapshot(t *testing.T) {
 }
 
 func TestConcurrentStateMachineLookup(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	done := uint32(0)
 	tf := func(t *testing.T, nh *NodeHost) {
 		nhc := nh.NodeHostConfig()
@@ -2753,7 +2753,7 @@ func TestConcurrentStateMachineLookup(t *testing.T) {
 }
 
 func TestConcurrentStateMachineSaveSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh *NodeHost) {
 		nhc := nh.NodeHostConfig()
 		shardID := 1 + nhc.Expert.Engine.ApplyShards
@@ -2785,7 +2785,7 @@ func TestConcurrentStateMachineSaveSnapshot(t *testing.T) {
 }
 
 func TestErrorCanBeReturnedWhenLookingUpConcurrentStateMachine(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh *NodeHost) {
 		nhc := nh.NodeHostConfig()
 		shardID := 1 + nhc.Expert.Engine.ApplyShards
@@ -2801,7 +2801,7 @@ func TestErrorCanBeReturnedWhenLookingUpConcurrentStateMachine(t *testing.T) {
 }
 
 func TestRegularStateMachineDoesNotAllowConucrrentUpdate(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	failed := uint32(0)
 	tf := func(t *testing.T, nh *NodeHost) {
 		nhi := nh.GetNodeHostInfo(DefaultNodeHostInfoOption)
@@ -2851,7 +2851,7 @@ func TestRegularStateMachineDoesNotAllowConucrrentUpdate(t *testing.T) {
 }
 
 func TestRegularStateMachineDoesNotAllowConcurrentSaveSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh *NodeHost) {
 		result := make(map[uint64]struct{})
 		session := nh.GetNoOPSession(1)
@@ -2872,7 +2872,7 @@ func TestRegularStateMachineDoesNotAllowConcurrentSaveSnapshot(t *testing.T) {
 }
 
 func TestLogDBRateLimit(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateConfig: func(c *config.Config) *config.Config {
@@ -2909,7 +2909,7 @@ func TestLogDBRateLimit(t *testing.T) {
 }
 
 func TestTooBigPayloadIsRejectedWhenRateLimited(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateConfig: func(c *config.Config) *config.Config {
 			c.MaxInMemLogSize = 1024 * 3
@@ -2933,7 +2933,7 @@ func TestTooBigPayloadIsRejectedWhenRateLimited(t *testing.T) {
 }
 
 func TestProposalsCanBeMadeWhenRateLimited(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateConfig: func(c *config.Config) *config.Config {
 			c.MaxInMemLogSize = 1024 * 3
@@ -2975,7 +2975,7 @@ func makeTestProposal(nh *NodeHost, count int) bool {
 }
 
 func TestRateLimitCanBeTriggered(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	limited := uint32(0)
 	stopper := syncutil.NewStopper()
 	to := &testOption{
@@ -3016,7 +3016,7 @@ func TestRateLimitCanBeTriggered(t *testing.T) {
 }
 
 func TestRateLimitCanUseFollowerFeedback(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh1 *NodeHost, nh2 *NodeHost,
 		n1 *tests.NoOP, n2 *tests.NoOP) {
 		session := nh1.GetNoOPSession(1)
@@ -3045,7 +3045,7 @@ func TestRateLimitCanUseFollowerFeedback(t *testing.T) {
 }
 
 func TestUpdateResultIsReturnedToCaller(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		updateConfig: func(c *config.Config) *config.Config {
 			c.MaxInMemLogSize = 1024 * 3
@@ -3072,7 +3072,7 @@ func TestUpdateResultIsReturnedToCaller(t *testing.T) {
 }
 
 func TestRaftLogQuery(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3166,7 +3166,7 @@ func TestRaftLogQuery(t *testing.T) {
 }
 
 func TestIsNonVotingIsReturnedWhenNodeIsNonVoting(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nh1 *NodeHost, nh2 *NodeHost) {
 		rc := config.Config{
 			ShardID:                 1,
@@ -3231,7 +3231,7 @@ func TestIsNonVotingIsReturnedWhenNodeIsNonVoting(t *testing.T) {
 }
 
 func TestSnapshotIndexWillPanicOnRegularRequestResult(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3250,7 +3250,7 @@ func TestSnapshotIndexWillPanicOnRegularRequestResult(t *testing.T) {
 }
 
 func TestSyncRequestSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3280,7 +3280,7 @@ func TestSyncRequestSnapshot(t *testing.T) {
 }
 
 func TestSnapshotCanBeExportedAfterSnapshotting(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3321,7 +3321,7 @@ func TestSnapshotCanBeExportedAfterSnapshotting(t *testing.T) {
 }
 
 func TestCanOverrideSnapshotOverhead(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3376,7 +3376,7 @@ func TestCanOverrideSnapshotOverhead(t *testing.T) {
 }
 
 func TestSnapshotCanBeRequested(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3422,7 +3422,7 @@ func TestSnapshotCanBeRequested(t *testing.T) {
 }
 
 func TestClientCanBeNotifiedOnCommittedConfigChange(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateNodeHostConfig: func(c *config.NodeHostConfig) *config.NodeHostConfig {
@@ -3446,7 +3446,7 @@ func TestClientCanBeNotifiedOnCommittedConfigChange(t *testing.T) {
 }
 
 func TestClientCanBeNotifiedOnCommittedProposals(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		updateNodeHostConfig: func(c *config.NodeHostConfig) *config.NodeHostConfig {
@@ -3472,7 +3472,7 @@ func TestClientCanBeNotifiedOnCommittedProposals(t *testing.T) {
 }
 
 func TestRequestSnapshotTimeoutWillBeReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	pst := &PST{slowSave: true}
 	to := &testOption{
 		createSM: func(uint64, uint64) sm.IStateMachine {
@@ -3490,7 +3490,7 @@ func TestRequestSnapshotTimeoutWillBeReported(t *testing.T) {
 }
 
 func TestSyncRemoveData(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3515,7 +3515,7 @@ func TestSyncRemoveData(t *testing.T) {
 }
 
 func TestRemoveNodeDataWillFailWhenNodeIsStillRunning(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3527,7 +3527,7 @@ func TestRemoveNodeDataWillFailWhenNodeIsStillRunning(t *testing.T) {
 }
 
 func TestRestartingAnNodeWithRemovedDataWillBeRejected(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3560,7 +3560,7 @@ func TestRestartingAnNodeWithRemovedDataWillBeRejected(t *testing.T) {
 }
 
 func TestRemoveNodeDataRemovesAllNodeData(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3657,7 +3657,7 @@ func TestRemoveNodeDataRemovesAllNodeData(t *testing.T) {
 }
 
 func TestSnapshotOptionIsChecked(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3680,7 +3680,7 @@ func TestSnapshotOptionIsChecked(t *testing.T) {
 }
 
 func TestSnapshotCanBeExported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -3740,7 +3740,7 @@ func TestSnapshotCanBeExported(t *testing.T) {
 }
 
 func TestOnDiskStateMachineCanExportSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		fakeDiskNode: true,
 		tf: func(nh *NodeHost) {
@@ -3829,7 +3829,7 @@ func TestOnDiskStateMachineCanExportSnapshot(t *testing.T) {
 }
 
 func testImportedSnapshotIsAlwaysRestored(t *testing.T,
-	newDir bool, ct config.CompressionType, fs vfs.IFS) {
+	newDir bool, ct config.CompressionType, fs vfs.FS) {
 	tf := func() {
 		rc := config.Config{
 			ShardID:                 1,
@@ -3953,10 +3953,10 @@ func testImportedSnapshotIsAlwaysRestored(t *testing.T,
 }
 
 func TestImportedSnapshotIsAlwaysRestored(t *testing.T) {
-	if vfs.GetTestFS() != vfs.DefaultFS {
+	if vfs.NewStrictMem() != vfs.Default {
 		t.Skip("not using the default fs")
 	} else {
-		fs := vfs.GetTestFS()
+		fs := vfs.NewStrictMem()
 		testImportedSnapshotIsAlwaysRestored(t, true, config.NoCompression, fs)
 		testImportedSnapshotIsAlwaysRestored(t, false, config.NoCompression, fs)
 		testImportedSnapshotIsAlwaysRestored(t, false, config.Snappy, fs)
@@ -3964,7 +3964,7 @@ func TestImportedSnapshotIsAlwaysRestored(t *testing.T) {
 }
 
 func TestShardWithoutQuorumCanBeRestoreByImportingSnapshot(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func() {
 		nh1dir := fs.PathJoin(singleNodeHostTestDir, "nh1")
 		nh2dir := fs.PathJoin(singleNodeHostTestDir, "nh2")
@@ -4170,7 +4170,7 @@ func getTestSSMeta() rsm.SSMeta {
 }
 
 func testCorruptedChunkWriterOutputCanBeHandledByChunk(t *testing.T,
-	enabled bool, exp uint64, fs vfs.IFS) {
+	enabled bool, exp uint64, fs vfs.FS) {
 	require.NoError(t, fs.RemoveAll(testSnapshotDir))
 	c := &chunks{}
 	dir := c.getSnapshotDirFunc(0, 0)
@@ -4200,13 +4200,13 @@ func testCorruptedChunkWriterOutputCanBeHandledByChunk(t *testing.T,
 }
 
 func TestCorruptedChunkWriterOutputCanBeHandledByChunk(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testCorruptedChunkWriterOutputCanBeHandledByChunk(t, false, 1, fs)
 	testCorruptedChunkWriterOutputCanBeHandledByChunk(t, true, 0, fs)
 }
 
 func TestChunkWriterOutputCanBeHandledByChunk(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	require.NoError(t, fs.RemoveAll(testSnapshotDir))
 	c := &chunks{}
 	dir := c.getSnapshotDirFunc(0, 0)
@@ -4261,8 +4261,8 @@ func TestChunkWriterOutputCanBeHandledByChunk(t *testing.T) {
 }
 
 func TestNodeHostReturnsErrorWhenTransportCanNotBeCreated(t *testing.T) {
-	fs := vfs.GetTestFS()
-	if fs != vfs.DefaultFS {
+	fs := vfs.NewStrictMem()
+	if fs != vfs.Default {
 		t.Skip("memfs test mode, skipped")
 	}
 	to := &testOption{
@@ -4276,7 +4276,7 @@ func TestNodeHostReturnsErrorWhenTransportCanNotBeCreated(t *testing.T) {
 }
 
 func TestNodeHostChecksLogDBType(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	ldb := &noopLogDB{}
 	to := &testOption{
 		updateNodeHostConfig: func(c *config.NodeHostConfig) *config.NodeHostConfig {
@@ -4302,8 +4302,8 @@ func spawn(execName string) ([]byte, error) {
 }
 
 func TestNodeHostFileLock(t *testing.T) {
-	fs := vfs.GetTestFS()
-	if fs != vfs.DefaultFS {
+	fs := vfs.NewStrictMem()
+	if fs != vfs.Default {
 		t.Skip("not using the default fs, skipped")
 	}
 	tf := func() {
@@ -4335,7 +4335,7 @@ func TestNodeHostFileLock(t *testing.T) {
 }
 
 func TestChangeNodeHostID(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func() {
 		nhc := config.NodeHostConfig{
 			NodeHostDir:    singleNodeHostTestDir,
@@ -4372,7 +4372,7 @@ func (t *testLogDBFactory2) Name() string {
 }
 
 func TestNodeHostReturnsErrLogDBBrokenChangeWhenLogDBTypeChanges(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	bff := func(config config.NodeHostConfig, cb config.LogDBCallback,
 		dirs []string, lldirs []string) (raftio.ILogDB, error) {
 		return logdb.NewDefaultBatchedLogDB(config, cb, dirs, lldirs)
@@ -4399,7 +4399,7 @@ func TestNodeHostReturnsErrLogDBBrokenChangeWhenLogDBTypeChanges(t *testing.T) {
 }
 
 func TestNodeHostByDefaultUsePlainEntryLogDB(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	bff := func(config config.NodeHostConfig, cb config.LogDBCallback,
 		dirs []string, lldirs []string) (raftio.ILogDB, error) {
 		return logdb.NewDefaultBatchedLogDB(config, cb, dirs, lldirs)
@@ -4426,7 +4426,7 @@ func TestNodeHostByDefaultUsePlainEntryLogDB(t *testing.T) {
 }
 
 func TestNodeHostByDefaultChecksWhetherToUseBatchedLogDB(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	bff := func(config config.NodeHostConfig, cb config.LogDBCallback,
 		dirs []string, lldirs []string) (raftio.ILogDB, error) {
 		return logdb.NewDefaultBatchedLogDB(config, cb, dirs, lldirs)
@@ -4465,7 +4465,7 @@ func TestNodeHostByDefaultChecksWhetherToUseBatchedLogDB(t *testing.T) {
 }
 
 func TestNodeHostWithUnexpectedDeploymentIDWillBeDetected(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		noElection: true,
 		at: func(*NodeHost) {
@@ -4480,7 +4480,7 @@ func TestNodeHostWithUnexpectedDeploymentIDWillBeDetected(t *testing.T) {
 }
 
 func TestGossipInfoIsReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	advertiseAddress := "202.96.1.2:12345"
 	to := &testOption{
 		noElection: true,
@@ -4507,7 +4507,7 @@ func TestGossipInfoIsReported(t *testing.T) {
 }
 
 func TestLeaderInfoIsReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -4550,7 +4550,7 @@ func TestLeaderInfoIsReported(t *testing.T) {
 }
 
 func TestDroppedRequestsAreReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -4624,7 +4624,7 @@ func (rel *testRaftEventListener) get() []raftio.LeaderInfo {
 }
 
 func TestRaftEventsAreReported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	rel := &testRaftEventListener{
 		received: make([]raftio.LeaderInfo, 0),
 	}
@@ -4672,8 +4672,8 @@ func TestRaftEventsAreReported(t *testing.T) {
 }
 
 func TestV2DataCanBeHandled(t *testing.T) {
-	fs := vfs.GetTestFS()
-	if vfs.GetTestFS() != vfs.DefaultFS {
+	fs := vfs.NewStrictMem()
+	if vfs.NewStrictMem() != vfs.Default {
 		t.Skip("skipped as not using the default fs")
 	}
 	v2datafp := "internal/logdb/testdata/v2-rocksdb-batched.tar.bz2"
@@ -4720,7 +4720,7 @@ func TestV2DataCanBeHandled(t *testing.T) {
 }
 
 func TestSnapshotCanBeCompressed(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		compressed: true,
 		createSM: func(uint64, uint64) sm.IStateMachine {
@@ -4761,7 +4761,7 @@ func makeProposals(nh *NodeHost) {
 }
 
 func testWitnessIO(t *testing.T,
-	witnessTestFunc func(*NodeHost, *NodeHost, *tests.SimDiskSM), fs vfs.IFS) {
+	witnessTestFunc func(*NodeHost, *NodeHost, *tests.SimDiskSM), fs vfs.FS) {
 	tf := func() {
 		rc := config.Config{
 			ShardID:      1,
@@ -4831,7 +4831,7 @@ func testWitnessIO(t *testing.T,
 }
 
 func TestWitnessSnapshotIsCorrectlyHandled(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(nh1 *NodeHost, nh2 *NodeHost, witness *tests.SimDiskSM) {
 		for {
 			require.Zero(t, witness.GetRecovered(),
@@ -4851,7 +4851,7 @@ func TestWitnessSnapshotIsCorrectlyHandled(t *testing.T) {
 }
 
 func TestWitnessCanReplicateEntries(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(nh1 *NodeHost, nh2 *NodeHost, witness *tests.SimDiskSM) {
 		for i := 0; i < 8; i++ {
 			makeProposals(nh1)
@@ -4863,7 +4863,7 @@ func TestWitnessCanReplicateEntries(t *testing.T) {
 }
 
 func TestWitnessCanNotInitiateIORequest(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(nh1 *NodeHost, nh2 *NodeHost, witness *tests.SimDiskSM) {
 		pto := lpto(nh1)
 		opt := SnapshotOption{OverrideCompactionOverhead: true, CompactionOverhead: 1}
@@ -4904,7 +4904,7 @@ func TestWitnessCanNotInitiateIORequest(t *testing.T) {
 }
 
 func TestStateMachineIsClosedAfterOffloaded(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tsm := &TimeoutStateMachine{}
 	to := &testOption{
 		createSM: func(uint64, uint64) sm.IStateMachine {
@@ -4918,7 +4918,7 @@ func TestStateMachineIsClosedAfterOffloaded(t *testing.T) {
 }
 
 func TestTimeoutCanBeReturned(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	rtt := getRTTMillisecond(fs, singleNodeHostTestDir)
 	to := &testOption{
 		createSM: func(uint64, uint64) sm.IStateMachine {
@@ -4946,7 +4946,7 @@ func TestTimeoutCanBeReturned(t *testing.T) {
 
 func testIOErrorIsHandled(t *testing.T, op vfs.Op) {
 	inj := vfs.OnIndex(-1, op)
-	fs := vfs.Wrap(vfs.GetTestFS(), inj)
+	fs := vfs.Wrap(vfs.NewStrictMem(), inj)
 	to := &testOption{
 		fsErrorInjection: true,
 		defaultTestNode:  true,
@@ -4980,7 +4980,7 @@ func TestIOErrorIsHandled(t *testing.T) {
 }
 
 func TestInstallSnapshotMessageIsNeverDropped(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -4997,7 +4997,7 @@ func TestInstallSnapshotMessageIsNeverDropped(t *testing.T) {
 }
 
 func TestMessageToUnknownNodeIsIgnored(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5015,7 +5015,7 @@ func TestMessageToUnknownNodeIsIgnored(t *testing.T) {
 }
 
 func TestNodeCanBeUnloadedOnceClosed(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5046,7 +5046,7 @@ func TestNodeCanBeUnloadedOnceClosed(t *testing.T) {
 }
 
 func TestUsingClosedNodeHostIsNotAllowed(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		at: func(nh *NodeHost) {
@@ -5109,7 +5109,7 @@ func TestUsingClosedNodeHostIsNotAllowed(t *testing.T) {
 }
 
 func TestContextDeadlineIsChecked(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5230,7 +5230,7 @@ func TestIncorrectlyRoutedMessagesAreIgnored(t *testing.T) {
 }
 
 func TestProposeOnClosedNode(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5248,7 +5248,7 @@ func TestProposeOnClosedNode(t *testing.T) {
 }
 
 func TestReadIndexOnClosedNode(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5265,7 +5265,7 @@ func TestReadIndexOnClosedNode(t *testing.T) {
 }
 
 func TestNodeCanNotStartWhenStillLoadedInEngine(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5282,7 +5282,7 @@ func TestNodeCanNotStartWhenStillLoadedInEngine(t *testing.T) {
 }
 
 func TestBootstrapInfoIsValidated(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	to := &testOption{
 		defaultTestNode: true,
 		tf: func(nh *NodeHost) {
@@ -5336,7 +5336,7 @@ func TestSlowTestStressedSnapshotWorker(t *testing.T) {
 	if len(os.Getenv("SLOW_TEST")) == 0 {
 		t.Skip("skipped TestSlowTestStressedSnapshotWorker, SLOW_TEST not set")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))
 	defer func() {
 		require.NoError(t, fs.RemoveAll(singleNodeHostTestDir))

@@ -17,13 +17,13 @@ package server
 import (
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func reportLeakedFD(fs vfs.IFS, t *testing.T) {
+func reportLeakedFD(fs vfs.FS, t *testing.T) {
 	vfs.ReportLeakedFD(fs, t)
 }
 
@@ -68,7 +68,7 @@ func TestTempSuffix(t *testing.T) {
 	f := func(cid uint64, nid uint64) string {
 		return "/data"
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	env := NewSSEnv(f, 1, 1, 1, 2, SnapshotMode, fs)
 	dir := env.GetTempDir()
 	assert.Contains(t, dir, ".generating")
@@ -82,7 +82,7 @@ func TestFinalSnapshotDirDoesNotContainTempSuffix(t *testing.T) {
 	f := func(cid uint64, nid uint64) string {
 		return "/data"
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	env := NewSSEnv(f, 1, 1, 1, 2, SnapshotMode, fs)
 	dir := env.GetFinalDir()
 	assert.NotContains(t, dir, ".generating")
@@ -92,7 +92,7 @@ func TestRootDirIsTheParentOfTempFinalDirs(t *testing.T) {
 	f := func(cid uint64, nid uint64) string {
 		return "/data"
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	env := NewSSEnv(f, 1, 1, 1, 2, SnapshotMode, fs)
 	tmpDir := env.GetTempDir()
 	finalDir := env.GetFinalDir()
@@ -107,7 +107,7 @@ func TestRootDirIsTheParentOfTempFinalDirs(t *testing.T) {
 }
 
 func runEnvTest(t *testing.T, f func(t *testing.T, env SSEnv),
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	rd := "server-pkg-test-data-safe-to-delete"
 	defer func() {
 		err := fs.RemoveAll(rd)
@@ -131,7 +131,7 @@ func TestRenameTempDirToFinalDir(t *testing.T) {
 		err := env.renameToFinalDir()
 		require.NoError(t, err)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runEnvTest(t, tf, fs)
 }
 
@@ -143,7 +143,7 @@ func TestRenameTempDirToFinalDirCanComplete(t *testing.T) {
 		assert.True(t, env.finalDirExists())
 		assert.False(t, env.HasFlagFile())
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runEnvTest(t, tf, fs)
 }
 
@@ -158,7 +158,7 @@ func TestFlagFileExists(t *testing.T) {
 		assert.True(t, env.finalDirExists())
 		assert.True(t, env.HasFlagFile())
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runEnvTest(t, tf, fs)
 }
 
@@ -170,7 +170,7 @@ func TestFinalizeSnapshotCanComplete(t *testing.T) {
 		assert.True(t, env.HasFlagFile())
 		assert.True(t, env.finalDirExists())
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runEnvTest(t, tf, fs)
 }
 
@@ -184,6 +184,6 @@ func TestFinalizeSnapshotReturnOutOfDateWhenFinalDirExist(t *testing.T) {
 		assert.Equal(t, ErrSnapshotOutOfDate, err)
 		assert.False(t, env.HasFlagFile())
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runEnvTest(t, tf, fs)
 }

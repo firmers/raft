@@ -22,10 +22,10 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/lni/goutils/leaktest"
-	"github.com/lni/vfs"
 	"github.com/stretchr/testify/require"
 )
 

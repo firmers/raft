@@ -36,13 +36,13 @@ package transport
 import (
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -259,7 +259,7 @@ func getChunks(m pb.Message) []pb.Chunk {
 	return results
 }
 
-func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func getWitnessChunk(m pb.Message, fs vfs.FS) ([]pb.Chunk, error) {
 	ss, err := rsm.GetWitnessSnapshot(fs)
 	if err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func getWitnessChunk(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
 	return results, nil
 }
 
-func splitSnapshotMessage(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
+func splitSnapshotMessage(m pb.Message, fs vfs.FS) ([]pb.Chunk, error) {
 	if m.Type != pb.InstallSnapshot {
 		panic("not a snapshot message")
 	}
@@ -298,7 +298,7 @@ func splitSnapshotMessage(m pb.Message, fs vfs.IFS) ([]pb.Chunk, error) {
 }
 
 func loadChunkData(chunk pb.Chunk,
-	data []byte, fs vfs.IFS) (result []byte, err error) {
+	data []byte, fs vfs.FS) (result []byte, err error) {
 	f, err := openChunkFileForRead(chunk.Filepath, fs)
 	if err != nil {
 		return nil, err

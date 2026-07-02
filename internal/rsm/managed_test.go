@@ -19,10 +19,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 	"github.com/stretchr/testify/require"
 )
 

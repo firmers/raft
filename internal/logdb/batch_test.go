@@ -19,9 +19,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -287,7 +287,7 @@ func TestEntryBatchWillNotBeMergedToPreviousBatch(t *testing.T) {
 		assert.Equal(t, nextIndex, eb.Entries[0].Index,
 			"unexpected index %d, want 10", eb.Entries[0].Index)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runBatchedLogDBTest(t, tf, fs)
 }
 
@@ -337,7 +337,7 @@ func TestEntryBatchMergedNotLastBatch(t *testing.T) {
 			}
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runBatchedLogDBTest(t, tf, fs)
 }
 
@@ -395,6 +395,6 @@ func TestSaveEntriesAcrossMultipleBatches(t *testing.T) {
 			plog.Infof("idx %d", e.Index)
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runBatchedLogDBTest(t, tf, fs)
 }

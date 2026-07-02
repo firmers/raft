@@ -20,17 +20,17 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -70,7 +70,7 @@ func (l *ssLock) unlock() {
 
 // Chunk managed on the receiving side
 type Chunk struct {
-	fs        vfs.IFS
+	fs        vfs.FS
 	tracked   map[string]*tracked
 	locks     map[string]*ssLock
 	dir       server.SnapshotDirFunc
@@ -87,7 +87,7 @@ type Chunk struct {
 // NewChunk creates and returns a new snapshot chunks instance.
 func NewChunk(onReceive func(pb.MessageBatch),
 	confirm func(uint64, uint64, uint64), dir server.SnapshotDirFunc,
-	did uint64, fs vfs.IFS) *Chunk {
+	did uint64, fs vfs.FS) *Chunk {
 	return &Chunk{
 		did:       did,
 		validate:  true,

@@ -108,7 +108,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 )
 
 // These constants are part of the wire format and should not be changed.

@@ -22,8 +22,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
 )
 
 func TestEntryAppend(t *testing.T) {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"crypto/rand"
@@ -23,11 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/rsm"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 	"github.com/lni/goutils/random"
 )
 

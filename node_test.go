@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"context"
@@ -29,19 +29,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/raft"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/tests"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/raft"
+	"github.com/firmers/raft/internal/registry"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/tests"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 const (
@@ -145,14 +145,14 @@ func (r *testRouter) addQ(replicaID uint64, q *server.MessageQueue) {
 	r.qm[replicaID] = q
 }
 
-func cleanupTestDir(fs vfs.IFS) {
+func cleanupTestDir(fs vfs.FS) {
 	if err := fs.RemoveAll(raftTestTopDir); err != nil {
 		panic(err)
 	}
 }
 
 func getTestRaftNodes(count int, ordered bool,
-	fs vfs.IFS) ([]*node, []*rsm.StateMachine, *testRouter, raftio.ILogDB) {
+	fs vfs.FS) ([]*node, []*rsm.StateMachine, *testRouter, raftio.ILogDB) {
 	return doGetTestRaftNodes(1, count, ordered, nil, fs)
 }
 
@@ -168,7 +168,7 @@ func (d *dummyEngine) setSaveReady(shardID uint64)    {}
 func (d *dummyEngine) setRecoverReady(shardID uint64) {}
 
 func doGetTestRaftNodes(startID uint64, count int, ordered bool,
-	ldb raftio.ILogDB, fs vfs.IFS) ([]*node, []*rsm.StateMachine,
+	ldb raftio.ILogDB, fs vfs.FS) ([]*node, []*rsm.StateMachine,
 	*testRouter, raftio.ILogDB) {
 	nodes := make([]*node, 0)
 	smList := make([]*rsm.StateMachine, 0)
@@ -421,7 +421,7 @@ func stopNodes(nodes []*node) {
 }
 
 func TestNodeCanBeCreatedAndStarted(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	defer cleanupTestDir(fs)
 	nodes, smList, router, ldb := getTestRaftNodes(3, false, fs)
@@ -513,7 +513,7 @@ func makeCheckedTestProposal(t *testing.T, session *client.Session,
 
 func runRaftNodeTest(t *testing.T, quiesce bool, ordered bool,
 	tf func(t *testing.T, nodes []*node,
-		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB), fs vfs.IFS) {
+		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB), fs vfs.FS) {
 	defer leaktest.AfterTest(t)()
 	defer cleanupTestDir(fs)
 	nodes, smList, router, ldb := getTestRaftNodes(3, ordered, fs)
@@ -536,7 +536,7 @@ func runRaftNodeTest(t *testing.T, quiesce bool, ordered bool,
 }
 
 func TestLastAppliedValueCanBeReturned(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		n := nodes[0]
@@ -567,7 +567,7 @@ func TestLastAppliedValueCanBeReturned(t *testing.T) {
 }
 
 func TestLastAppliedValueIsAlwaysOneWayIncreasing(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		require.Panics(t, func() {
@@ -607,7 +607,7 @@ func TestProposalCanBeMadeWithMessageDrops(t *testing.T) {
 		}
 		closeProposalTestClient(n, nodes, smList, router, session)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -620,7 +620,7 @@ func TestLeaderIDCanBeQueried(t *testing.T) {
 		assert.GreaterOrEqual(t, v, uint64(1), "unexpected leader id %d", v)
 		assert.LessOrEqual(t, v, uint64(3), "unexpected leader id %d", v)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -644,7 +644,7 @@ func TestMembershipCanBeLocallyRead(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "peer:12348", addr3)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -656,7 +656,7 @@ func TestConfigChangeOnWitnessWillBeRejected(t *testing.T) {
 		_, err := n.requestConfigChange(pb.AddNode, 100, "noidea:9090", 0, 10)
 		assert.Equal(t, ErrInvalidOperation, err, "config change not rejected")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -668,7 +668,7 @@ func TestReadOnWitnessWillBeRejected(t *testing.T) {
 		_, err := n.read(10)
 		assert.Equal(t, ErrInvalidOperation, err, "read not rejected")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -681,7 +681,7 @@ func TestMakingProposalOnWitnessNodeWillBeRejected(t *testing.T) {
 		_, err := n.propose(cs, make([]byte, 1), 10)
 		assert.Equal(t, ErrInvalidOperation, err, "making proposal not rejected")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -693,7 +693,7 @@ func TestProposingSessionOnWitnessNodeWillBeRejected(t *testing.T) {
 		_, err := n.proposeSession(nil, 10)
 		assert.Equal(t, ErrInvalidOperation, err, "proposing session not rejected")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -705,7 +705,7 @@ func TestRequestingSnapshotOnWitnessWillBeRejected(t *testing.T) {
 		_, err := n.requestSnapshot(SnapshotOption{}, 10)
 		assert.Equal(t, ErrInvalidOperation, err, "requesting snapshot not rejected")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -724,7 +724,7 @@ func TestProposalWithClientSessionCanBeMade(t *testing.T) {
 		assert.Equal(t, maxLastApplied+1, getMaxLastApplied(smList), "didn't move the last applied value in smList")
 		closeProposalTestClient(n, nodes, smList, router, session)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -742,7 +742,7 @@ func TestProposalWithNotRegisteredClientWillBeRejected(t *testing.T) {
 			nodes, smList, router, requestRejected, true, 0)
 		assert.Equal(t, maxLastApplied+1, getMaxLastApplied(smList), "didn't move the last applied value in smList")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -766,7 +766,7 @@ func TestDuplicatedProposalReturnsTheSameResult(t *testing.T) {
 		assert.Equal(t, maxLastApplied+1, getMaxLastApplied(smList), "didn't move the last applied value in smList")
 		closeProposalTestClient(n, nodes, smList, router, session)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -805,7 +805,7 @@ func TestReproposeRespondedDataWillTimeout(t *testing.T) {
 			assert.Fail(t, "failed to complete the proposal")
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -835,7 +835,7 @@ func TestProposalsWithIllFormedSessionAreChecked(t *testing.T) {
 		_, err = n.propose(s1, nil, 10)
 		assert.Equal(t, ErrInvalidSession, err)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -851,12 +851,12 @@ func TestProposalsWithCorruptedSessionWillPanic(t *testing.T) {
 			require.NoError(t, err, "failed to make proposal %v", err)
 		})
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
 func TestRaftNodeQuiesceCanBeDisabled(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	// quiesce is disabled by default
 	defer cleanupTestDir(fs)
@@ -900,7 +900,7 @@ func TestNodesCanEnterQuiesce(t *testing.T) {
 			assert.True(t, node.qs.quiesced(), "node failed to enter quiesced")
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, true, false, tf, fs)
 }
 
@@ -932,7 +932,7 @@ func TestNodesCanExitQuiesceByMakingProposal(t *testing.T) {
 			assert.False(t, node.qs.quiesced(), "node failed to exit from quiesced")
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, true, false, tf, fs)
 }
 
@@ -967,7 +967,7 @@ func TestNodesCanExitQuiesceByReadIndex(t *testing.T) {
 			assert.False(t, node.qs.quiesced(), "node failed to exit from quiesced")
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, true, false, tf, fs)
 }
 
@@ -1015,7 +1015,7 @@ func TestNodesCanExitQuiesceByConfigChange(t *testing.T) {
 			assert.False(t, node.qs.quiesced(), "node failed to exit from quiesced")
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, true, false, tf, fs)
 }
 
@@ -1039,11 +1039,11 @@ func TestLinearizableReadCanBeMade(t *testing.T) {
 		stepNodes(nodes, smList, router, 10)
 		mustComplete(rs, t)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
-func testNodeCanBeAdded(t *testing.T, fs vfs.IFS) {
+func testNodeCanBeAdded(t *testing.T, fs vfs.FS) {
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		router.dropRate = 3
@@ -1061,7 +1061,7 @@ func testNodeCanBeAdded(t *testing.T, fs vfs.IFS) {
 }
 
 func TestNodeCanBeAddedWithMessageDrops(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	for i := 0; i < 10; i++ {
 		testNodeCanBeAdded(t, fs)
@@ -1080,7 +1080,7 @@ func TestNodeCanBeDeleted(t *testing.T) {
 		assert.True(t, nodes[1].stopped(), "node is not stopped")
 		assert.False(t, nodes[2].stopped(), "node id 3 is not suppose to be in stopped state")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
@@ -1101,7 +1101,7 @@ func sliceEqual(s1 []uint64, s2 []uint64) bool {
 func TestNodeCanBeAdded2(t *testing.T) {
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
-		fs := vfs.GetTestFS()
+		fs := vfs.NewStrictMem()
 		n := nodes[0]
 		session, ok := getProposalTestClient(n, nodes, smList, router)
 		require.True(t, ok, "failed to get session")
@@ -1134,12 +1134,12 @@ func TestNodeCanBeAdded2(t *testing.T) {
 		stepNodes(nodes, smList, router, 100)
 		assert.Equal(t, smList[0].GetLastApplied(), newSMList[0].GetLastApplied(), "last applied not equal")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
 func TestNodeCanBeAddedWhenOrderIsEnforced(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		n := nodes[0]
@@ -1167,7 +1167,7 @@ func TestNodeCanBeAddedWhenOrderIsEnforced(t *testing.T) {
 }
 
 func TestNodeCanBeDeletedWhenOrderIsEnforced(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		n := nodes[0]
@@ -1195,7 +1195,7 @@ func TestNodeCanBeDeletedWhenOrderIsEnforced(t *testing.T) {
 	runRaftNodeTest(t, false, true, tf, fs)
 }
 
-func getSnapshotFileCount(dir string, fs vfs.IFS) (int, error) {
+func getSnapshotFileCount(dir string, fs vfs.FS) (int, error) {
 	fiList, err := fs.List(dir)
 	if err != nil {
 		return 0, err
@@ -1217,7 +1217,7 @@ func getSnapshotFileCount(dir string, fs vfs.IFS) (int, error) {
 }
 
 func TestSnapshotCanBeMade(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	tf := func(t *testing.T, nodes []*node,
 		smList []*rsm.StateMachine, router *testRouter, ldb raftio.ILogDB) {
 		n := nodes[0]
@@ -1273,12 +1273,12 @@ func TestSnapshotCanBeMadeTwice(t *testing.T) {
 			require.NoError(t, node.save(rsm.Task{}))
 		}
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runRaftNodeTest(t, false, false, tf, fs)
 }
 
 func TestNodesCanBeRestarted(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	defer cleanupTestDir(fs)
 	nodes, smList, router, ldb := getTestRaftNodes(3, false, fs)
@@ -1492,7 +1492,7 @@ func (np *testDummyNodeProxy) ShardID() uint64                                  
 func (np *testDummyNodeProxy) ShouldStop() <-chan struct{}                           { return nil }
 
 func TestNotReadyTakingSnapshotNodeIsSkippedWhenConcurrencyIsNotSupported(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	n := &node{ss: snapshotState{}, initializedC: make(chan struct{})}
 	config := config.Config{ShardID: 1, ReplicaID: 1}
 	n.sm = rsm.NewStateMachine(
@@ -1506,7 +1506,7 @@ func TestNotReadyTakingSnapshotNodeIsSkippedWhenConcurrencyIsNotSupported(t *tes
 }
 
 func TestNotReadyTakingSnapshotConcurrentNodeIsNotSkipped(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	n := &node{ss: snapshotState{}, initializedC: make(chan struct{})}
 	config := config.Config{ShardID: 1, ReplicaID: 1}
 	n.sm = rsm.NewStateMachine(
@@ -1614,4 +1614,3 @@ func TestEntriesToApply(t *testing.T) {
 		})
 	}
 }
-

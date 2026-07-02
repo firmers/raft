@@ -17,9 +17,9 @@ package tan
 import (
 	"testing"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/logger"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/stretchr/testify/require"
 )
 

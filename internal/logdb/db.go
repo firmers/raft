@@ -18,14 +18,14 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb/kv"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -77,7 +77,7 @@ func hasEntryRecord(kvs kv.IKVStore, batched bool) (bool, error) {
 
 func openRDB(config config.LogDBConfig,
 	callback kv.LogDBCallback, dir string, wal string, batched bool,
-	fs vfs.IFS, kvf kv.Factory) (*db, error) {
+	fs vfs.FS, kvf kv.Factory) (*db, error) {
 	kvs, err := kvf(config, callback, dir, wal, fs)
 	if err != nil {
 		return nil, err

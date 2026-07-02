@@ -15,7 +15,7 @@
 //go:build !dragonboat_monkeytest
 // +build !dragonboat_monkeytest
 
-package dragonboat
+package raft
 
 import (
 	"sync/atomic"

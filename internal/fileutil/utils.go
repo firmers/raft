@@ -22,18 +22,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/oserror"
+	"github.com/firmers/raft/internal/errors"
 
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 const (
@@ -59,12 +59,12 @@ func MustWrite(w io.Writer, data []byte) {
 }
 
 // DirExist returns whether the specified filesystem entry exists.
-func DirExist(name string, fs vfs.IFS) (result bool, err error) {
+func DirExist(name string, fs vfs.FS) (result bool, err error) {
 	if name == "." || name == "/" {
 		return true, nil
 	}
 	f, err := fs.OpenDir(name)
-	if err != nil && vfs.IsNotExist(err) {
+	if err != nil && errors.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -84,12 +84,12 @@ func DirExist(name string, fs vfs.IFS) (result bool, err error) {
 }
 
 // Exist returns whether the specified filesystem entry exists.
-func Exist(name string, fs vfs.IFS) (bool, error) {
+func Exist(name string, fs vfs.FS) (bool, error) {
 	if name == "." || name == "/" {
 		return true, nil
 	}
 	_, err := fs.Stat(name)
-	if err != nil && vfs.IsNotExist(err) {
+	if err != nil && errors.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -99,7 +99,7 @@ func Exist(name string, fs vfs.IFS) (bool, error) {
 }
 
 // MkdirAll creates the specified dir along with any necessary parents.
-func MkdirAll(dir string, fs vfs.IFS) error {
+func MkdirAll(dir string, fs vfs.FS) error {
 	exist, err := DirExist(dir, fs)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func MkdirAll(dir string, fs vfs.IFS) error {
 }
 
 // Mkdir creates the specified dir.
-func Mkdir(dir string, fs vfs.IFS) error {
+func Mkdir(dir string, fs vfs.FS) error {
 	parent := fs.PathDir(dir)
 	exist, err := DirExist(parent, fs)
 	if err != nil {
@@ -137,7 +137,7 @@ func Mkdir(dir string, fs vfs.IFS) error {
 }
 
 // SyncDir calls fsync on the specified directory.
-func SyncDir(dir string, fs vfs.IFS) (err error) {
+func SyncDir(dir string, fs vfs.FS) (err error) {
 	if runtime.GOOS == "windows" {
 		return nil
 	}
@@ -158,7 +158,7 @@ func SyncDir(dir string, fs vfs.IFS) (err error) {
 	if !fileInfo.IsDir() {
 		panic("not a dir")
 	}
-	df, err := fs.OpenDir(vfs.Clean(dir))
+	df, err := fs.OpenDir(filepath.Clean(dir))
 	if err != nil {
 		return err
 	}
@@ -169,13 +169,13 @@ func SyncDir(dir string, fs vfs.IFS) (err error) {
 }
 
 // MarkDirAsDeleted marks the specified directory as deleted.
-func MarkDirAsDeleted(dir string, msg pb.Marshaler, fs vfs.IFS) error {
+func MarkDirAsDeleted(dir string, msg pb.Marshaler, fs vfs.FS) error {
 	return CreateFlagFile(dir, deleteFilename, msg, fs)
 }
 
 // IsDirMarkedAsDeleted returns a boolean flag indicating whether the specified
 // directory has been marked as deleted.
-func IsDirMarkedAsDeleted(dir string, fs vfs.IFS) (bool, error) {
+func IsDirMarkedAsDeleted(dir string, fs vfs.FS) (bool, error) {
 	return Exist(fs.PathJoin(dir, deleteFilename), fs)
 }
 
@@ -195,7 +195,7 @@ func getHash(data []byte) []byte {
 // handle such situation, see how CreateFlagFile is used by snapshot images as
 // an example.
 func CreateFlagFile(dir string,
-	filename string, msg pb.Marshaler, fs vfs.IFS) (err error) {
+	filename string, msg pb.Marshaler, fs vfs.FS) (err error) {
 	fp := fs.PathJoin(dir, filename)
 	f, err := fs.Create(fp)
 	if err != nil {
@@ -228,9 +228,9 @@ func CreateFlagFile(dir string,
 // location. The data of the flag file will be unmarshaled into the specified
 // protobuf message.
 func GetFlagFileContent(dir string,
-	filename string, msg pb.Unmarshaler, fs vfs.IFS) (err error) {
+	filename string, msg pb.Unmarshaler, fs vfs.FS) (err error) {
 	fp := fs.PathJoin(dir, filename)
-	f, err := fs.Open(vfs.Clean(fp))
+	f, err := fs.Open(filepath.Clean(fp))
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func GetFlagFileContent(dir string,
 
 // HasFlagFile returns a boolean value indicating whether flag file can be
 // found in the specified location.
-func HasFlagFile(dir string, filename string, fs vfs.IFS) bool {
+func HasFlagFile(dir string, filename string, fs vfs.FS) bool {
 	fp := fs.PathJoin(dir, filename)
 	fi, err := fs.Stat(fp)
 	if err != nil {
@@ -269,13 +269,13 @@ func HasFlagFile(dir string, filename string, fs vfs.IFS) bool {
 }
 
 // RemoveFlagFile removes the specified flag file.
-func RemoveFlagFile(dir string, filename string, fs vfs.IFS) error {
+func RemoveFlagFile(dir string, filename string, fs vfs.FS) error {
 	return fs.Remove(fs.PathJoin(dir, filename))
 }
 
 // ExtractTarBz2 extracts files and directories from the specified tar.bz2 file
 // to the specified target directory.
-func ExtractTarBz2(bz2fn string, toDir string, fs vfs.IFS) (err error) {
+func ExtractTarBz2(bz2fn string, toDir string, fs vfs.FS) (err error) {
 	f, err := fs.Open(bz2fn)
 	if err != nil {
 		return err
@@ -326,7 +326,6 @@ func ExtractTarBz2(bz2fn string, toDir string, fs vfs.IFS) (err error) {
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-//
 var rand uint32
 var randmu sync.Mutex
 
@@ -355,10 +354,10 @@ func nextRandom() string {
 
 // TempFile returns a temp file.
 func TempFile(dir,
-	pattern string, fs vfs.IFS) (f vfs.File, name string, err error) {
+	pattern string, fs vfs.FS) (f vfs.File, name string, err error) {
 	if dir == "" {
-		dir = vfs.TempDir()
-		if fs != vfs.DefaultFS {
+		dir = os.TempDir()
+		if fs != vfs.Default {
 			if err := fs.MkdirAll(dir, defaultDirFileMode); err != nil {
 				return nil, "", err
 			}
@@ -374,7 +373,7 @@ func TempFile(dir,
 	for i := 0; i < 10000; i++ {
 		name = fs.PathJoin(dir, prefix+nextRandom()+suffix)
 		f, err = fs.Create(name)
-		if vfs.IsExist(err) {
+		if errors.IsExist(err) {
 			if nconflict++; nconflict > 10 {
 				randmu.Lock()
 				rand = reseed()
@@ -413,7 +412,7 @@ func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
 // Multiple programs calling TempDir simultaneously
 // will not choose the same directory. It is the caller's responsibility
 // to remove the directory when no longer needed.
-func TempDir(dir, pattern string, fs vfs.IFS) (name string, err error) {
+func TempDir(dir, pattern string, fs vfs.FS) (name string, err error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}
@@ -427,7 +426,7 @@ func TempDir(dir, pattern string, fs vfs.IFS) (name string, err error) {
 	for i := 0; i < 10000; i++ {
 		try := fs.PathJoin(dir, prefix+nextRandom()+suffix)
 		err = fs.MkdirAll(try, 0700)
-		if oserror.IsExist(err) {
+		if errors.IsExist(err) {
 			if nconflict++; nconflict > 10 {
 				randmu.Lock()
 				rand = reseed()
@@ -435,8 +434,8 @@ func TempDir(dir, pattern string, fs vfs.IFS) (name string, err error) {
 			}
 			continue
 		}
-		if oserror.IsNotExist(err) {
-			if _, err := fs.Stat(dir); oserror.IsNotExist(err) {
+		if errors.IsNotExist(err) {
+			if _, err := fs.Stat(dir); errors.IsNotExist(err) {
 				return "", err
 			}
 		}

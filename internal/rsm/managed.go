@@ -18,11 +18,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/config"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 var (

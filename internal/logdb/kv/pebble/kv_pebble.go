@@ -19,17 +19,16 @@ package pebble
 import (
 	"bytes"
 	"fmt"
-	"sync"
 
 	"github.com/cockroachdb/pebble"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/logdb/kv"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/logger"
 )
 
 var (
@@ -134,7 +133,7 @@ func (pebbleLogger) Fatalf(format string, args ...interface{}) {
 
 // NewKVStore returns a pebble based IKVStore instance.
 func NewKVStore(config config.LogDBConfig, callback kv.LogDBCallback,
-	dir string, wal string, fs vfs.IFS) (kv.IKVStore, error) {
+	dir string, wal string, fs vfs.FS) (kv.IKVStore, error) {
 	return openPebbleDB(config, callback, dir, wal, fs)
 }
 
@@ -152,20 +151,13 @@ type KV struct {
 
 var _ kv.IKVStore = (*KV)(nil)
 
-var pebbleWarning sync.Once
-
 func openPebbleDB(config config.LogDBConfig, callback kv.LogDBCallback,
-	dir string, walDir string, fs vfs.IFS) (kv.IKVStore, error) {
+	dir string, walDir string, fs vfs.FS) (kv.IKVStore, error) {
 	if config.IsEmpty() {
 		panic("invalid LogDBConfig")
 	}
-	pebbleWarning.Do(func() {
-		if fs == vfs.MemStrictFS {
-			plog.Warningf("running in pebble memfs test mode")
-		}
-	})
 	blockSize := int(config.KVBlockSize)
-	writeBufferSize := int(config.KVWriteBufferSize)
+	writeBufferSize := config.KVWriteBufferSize
 	maxWriteBufferNumber := int(config.KVMaxWriteBufferNumber)
 	l0FileNumCompactionTrigger := int(config.KVLevel0FileNumCompactionTrigger)
 	l0StopWritesTrigger := int(config.KVLevel0StopWritesTrigger)
@@ -202,10 +194,7 @@ func openPebbleDB(config config.LogDBConfig, callback kv.LogDBCallback,
 		Cache:                       cache,
 		Logger:                      PebbleLogger,
 	}
-	if fs != vfs.DefaultFS {
-		opts.FS = vfs.NewPebbleFS(fs)
-	}
-	kv := &KV{
+	kvs := &KV{
 		ro:       ro,
 		wo:       wo,
 		opts:     opts,
@@ -214,10 +203,10 @@ func openPebbleDB(config config.LogDBConfig, callback kv.LogDBCallback,
 		dbSet:    make(chan struct{}),
 	}
 	event := &eventListener{
-		kv:      kv,
+		kv:      kvs,
 		stopper: syncutil.NewStopper(),
 	}
-	opts.EventListener = pebble.EventListener{
+	opts.EventListener = &pebble.EventListener{
 		WALCreated:    event.onWALCreated,
 		FlushEnd:      event.onFlushEnd,
 		CompactionEnd: event.onCompactionEnd,
@@ -236,9 +225,9 @@ func openPebbleDB(config config.LogDBConfig, callback kv.LogDBCallback,
 		return nil, err
 	}
 	cache.Unref()
-	kv.db = pdb
-	kv.setEventListener(event)
-	return kv, nil
+	kvs.db = pdb
+	kvs.setEventListener(event)
+	return kvs, nil
 }
 
 func (r *KV) setEventListener(event *eventListener) {
@@ -277,7 +266,10 @@ func iteratorIsValid(iter *pebble.Iterator) bool {
 // IterateValue ...
 func (r *KV) IterateValue(fk []byte, lk []byte, inc bool,
 	op func(key []byte, data []byte) (bool, error)) (err error) {
-	iter := r.db.NewIter(r.ro)
+	iter, err := r.db.NewIter(r.ro)
+	if nil != err {
+		return err
+	}
 	defer func() {
 		err = firstError(err, iter.Close())
 	}()

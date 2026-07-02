@@ -23,8 +23,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cockroachdb/errors"
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 )
 
 // versionSet manages a collection of immutable versions, and manages the

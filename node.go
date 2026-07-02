@@ -12,27 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/raft"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/raft"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/transport"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 var (

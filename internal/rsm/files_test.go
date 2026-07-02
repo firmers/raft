@@ -17,10 +17,9 @@ package rsm
 import (
 	"testing"
 
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/leaktest"
 	"github.com/stretchr/testify/require"
-
-	"github.com/lni/dragonboat/v4/internal/vfs"
 )
 
 const (
@@ -53,8 +52,8 @@ func TestFileWithDuplicatedIDCanNotBeAdded(t *testing.T) {
 }
 
 func TestPrepareFiles(t *testing.T) {
-	fs := vfs.GetTestFS()
-	if fs != vfs.DefaultFS {
+	fs := vfs.NewStrictMem()
+	if fs != vfs.Default {
 		t.Skip("this test only support the default fs")
 	}
 	defer leaktest.AfterTest(t)()

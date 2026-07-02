@@ -15,13 +15,13 @@
 package upgrade310
 
 import (
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var firstError = utils.FirstError

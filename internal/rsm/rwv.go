@@ -38,12 +38,11 @@ import (
 	"io"
 	"math"
 
-	"github.com/cockroachdb/errors"
-
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 const (
@@ -493,7 +492,7 @@ func (v *v2validator) validateBlock(block []byte) bool {
 
 // GetV2PayloadChecksum calculates the payload checksum of the specified
 // snapshot file.
-func GetV2PayloadChecksum(fp string, fs vfs.IFS) (crc []byte, err error) {
+func GetV2PayloadChecksum(fp string, fs vfs.FS) (crc []byte, err error) {
 	offsets, err := getV2CRCOffsetList(fp, fs)
 	if err != nil {
 		return nil, err
@@ -523,7 +522,7 @@ func GetV2PayloadChecksum(fp string, fs vfs.IFS) (crc []byte, err error) {
 	return
 }
 
-func getV2ChecksumType(fp string, fs vfs.IFS) (ct pb.ChecksumType, err error) {
+func getV2ChecksumType(fp string, fs vfs.FS) (ct pb.ChecksumType, err error) {
 	reader, header, err := NewSnapshotReader(fp, fs)
 	if err != nil {
 		return 0, err
@@ -537,7 +536,7 @@ func getV2ChecksumType(fp string, fs vfs.IFS) (ct pb.ChecksumType, err error) {
 	return header.ChecksumType, nil
 }
 
-func getV2CRCOffsetList(fp string, fs vfs.IFS) ([]uint64, error) {
+func getV2CRCOffsetList(fp string, fs vfs.FS) ([]uint64, error) {
 	fi, err := fs.Stat(fp)
 	if err != nil {
 		return nil, err

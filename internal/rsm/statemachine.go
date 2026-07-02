@@ -25,18 +25,18 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/raft"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/raft"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/logger"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 var (
@@ -164,7 +164,7 @@ type ISnapshotter interface {
 // scheme.
 type StateMachine struct {
 	node        INode
-	fs          vfs.IFS
+	fs          vfs.FS
 	sm          IManagedStateMachine
 	snapshotter ISnapshotter
 	taskQ       *TaskQueue
@@ -198,7 +198,7 @@ var firstError = utils.FirstError
 // NewStateMachine creates a new application state machine object.
 func NewStateMachine(sm IManagedStateMachine,
 	snapshotter ISnapshotter,
-	cfg config.Config, node INode, fs vfs.IFS) *StateMachine {
+	cfg config.Config, node INode, fs vfs.FS) *StateMachine {
 	ordered := cfg.OrderedConfigChange
 	return &StateMachine{
 		snapshotter: snapshotter,

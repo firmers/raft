@@ -21,20 +21,20 @@ import (
 	"io"
 	"testing"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/leaktest"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/raft"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/tests"
-	"github.com/lni/dragonboat/v4/internal/tests/kvpb"
-	"github.com/lni/dragonboat/v4/internal/utils/dio"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/raft"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/tests"
+	"github.com/firmers/raft/internal/tests/kvpb"
+	"github.com/firmers/raft/internal/utils/dio"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 const (

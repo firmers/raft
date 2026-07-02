@@ -17,11 +17,11 @@ package rsm
 import (
 	"io"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 // IStateMachine is an adapter interface for underlying sm.IStateMachine,
@@ -251,7 +251,7 @@ func (s *ConcurrentStateMachine) Type() pb.StateMachineType {
 
 // ITestFS is an interface implemented by test SMs.
 type ITestFS interface {
-	SetTestFS(fs config.IFS)
+	SetTestFS(fs vfs.FS)
 }
 
 // OnDiskStateMachine is the type to represent an on disk state machine.
@@ -275,7 +275,7 @@ func NewOnDiskStateMachine(s sm.IOnDiskStateMachine) *OnDiskStateMachine {
 }
 
 // SetTestFS injects the specified fs to the test SM.
-func (s *OnDiskStateMachine) SetTestFS(fs config.IFS) {
+func (s *OnDiskStateMachine) SetTestFS(fs vfs.FS) {
 	if tfs, ok := s.sm.(ITestFS); ok {
 		plog.Infof("the underlying SM support test fs injection")
 		tfs.SetTestFS(fs)

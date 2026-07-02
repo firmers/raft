@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 // FakeDiskSM is a test state machine.

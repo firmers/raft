@@ -17,7 +17,7 @@ package logdb
 import (
 	"sync"
 
-	"github.com/lni/dragonboat/v4/raftio"
+	"github.com/firmers/raft/raftio"
 )
 
 type task struct {

@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build dragonboat_memfs_test
-
 package logdb
 
 import (
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv/pebble"
-	"github.com/lni/dragonboat/v4/internal/vfs"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb/kv"
+	"github.com/firmers/raft/internal/logdb/kv/pebble"
+	"github.com/firmers/raft/internal/vfs"
 )
 
 const (
@@ -30,14 +28,6 @@ const (
 
 func newDefaultKVStore(config config.LogDBConfig,
 	callback kv.LogDBCallback,
-	dir string, wal string, fs vfs.IFS) (kv.IKVStore, error) {
-	if fs == nil {
-		panic("nil fs")
-	}
-	if _, ok := fs.(*vfs.MemFS); !ok {
-		if _, ok := fs.(*vfs.ErrorFS); !ok {
-			panic("invalid fs")
-		}
-	}
+	dir string, wal string, fs vfs.FS) (kv.IKVStore, error) {
 	return pebble.NewKVStore(config, callback, dir, wal, fs)
 }

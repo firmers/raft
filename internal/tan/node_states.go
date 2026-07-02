@@ -18,9 +18,9 @@ import (
 	"bufio"
 	"bytes"
 
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 type nodeStates struct {

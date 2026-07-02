@@ -25,7 +25,7 @@ import (
 	"io"
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 )
 
 var errCorruptManifest = errors.New("corrupt manifest")

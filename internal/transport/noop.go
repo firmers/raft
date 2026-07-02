@@ -20,12 +20,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/raftio"
+	"github.com/firmers/raft/raftpb"
 )
 
 var (

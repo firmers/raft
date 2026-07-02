@@ -15,16 +15,16 @@
 //go:build dragonboat_monkeytest
 // +build dragonboat_monkeytest
 
-package dragonboat
+package raft
 
 import (
 	"sync/atomic"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/transport"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
 )
 
 func ApplyMonkeySettings() {

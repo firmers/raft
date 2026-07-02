@@ -18,12 +18,12 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 const (
@@ -70,7 +70,7 @@ type job struct {
 	conn         raftio.ISnapshotConnection
 	preSend      atomic.Value
 	postSend     atomic.Value
-	fs           vfs.IFS
+	fs           vfs.FS
 	ctx          context.Context
 	transport    raftio.ITransport
 	ch           chan pb.Chunk
@@ -86,7 +86,7 @@ type job struct {
 func newJob(ctx context.Context,
 	shardID uint64, replicaID uint64,
 	did uint64, streaming bool, sz int, transport raftio.ITransport,
-	stopc chan struct{}, fs vfs.IFS) *job {
+	stopc chan struct{}, fs vfs.FS) *job {
 	j := &job{
 		shardID:      shardID,
 		replicaID:    replicaID,

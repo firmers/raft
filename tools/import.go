@@ -22,23 +22,21 @@ tools for managing Dragonboat based applications.
 import (
 	"bytes"
 	"io"
-	"os"
-	"runtime"
 	"strings"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/logger"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -139,7 +137,7 @@ func ImportSnapshot(nhConfig config.NodeHostConfig,
 		nhConfig.DeploymentID = unmanagedDeploymentID
 	}
 	if nhConfig.Expert.FS == nil {
-		nhConfig.Expert.FS = vfs.DefaultFS
+		nhConfig.Expert.FS = vfs.Default
 	}
 	if err := nhConfig.Prepare(); err != nil {
 		return err
@@ -223,7 +221,7 @@ func ImportSnapshot(nhConfig config.NodeHostConfig,
 	return logdb.ImportSnapshot(ss, replicaID)
 }
 
-func cleanupSnapshotDir(dir string, fs vfs.IFS) error {
+func cleanupSnapshotDir(dir string, fs vfs.FS) error {
 	files, err := fs.List(dir)
 	if err != nil {
 		return err
@@ -265,7 +263,7 @@ func checkImportSettings(nhConfig config.NodeHostConfig,
 }
 
 func isCompleteSnapshotImage(ssfp string,
-	ss pb.Snapshot, fs vfs.IFS) (bool, error) {
+	ss pb.Snapshot, fs vfs.FS) (bool, error) {
 	checksum, err := rsm.GetV2PayloadChecksum(ssfp, fs)
 	if err != nil {
 		return false, err
@@ -273,7 +271,7 @@ func isCompleteSnapshotImage(ssfp string,
 	return bytes.Equal(checksum, ss.Checksum), nil
 }
 
-func getSnapshotFilepath(dir string, fs vfs.IFS) (string, error) {
+func getSnapshotFilepath(dir string, fs vfs.FS) (string, error) {
 	exist, err := fileutil.Exist(dir, fs)
 	if err != nil {
 		return "", err
@@ -291,7 +289,7 @@ func getSnapshotFilepath(dir string, fs vfs.IFS) (string, error) {
 	return files[0], nil
 }
 
-func getSnapshotFiles(path string, fs vfs.IFS) ([]string, error) {
+func getSnapshotFiles(path string, fs vfs.FS) ([]string, error) {
 	names, err := getSnapshotFilenames(path, fs)
 	if err != nil {
 		return nil, err
@@ -303,7 +301,7 @@ func getSnapshotFiles(path string, fs vfs.IFS) ([]string, error) {
 	return results, nil
 }
 
-func getSnapshotFilenames(path string, fs vfs.IFS) ([]string, error) {
+func getSnapshotFilenames(path string, fs vfs.FS) ([]string, error) {
 	files, err := fs.List(path)
 	if err != nil {
 		return nil, err
@@ -325,7 +323,7 @@ func getSnapshotFilenames(path string, fs vfs.IFS) ([]string, error) {
 }
 
 func getSnapshotRecord(dir string,
-	filename string, fs vfs.IFS) (pb.Snapshot, error) {
+	filename string, fs vfs.FS) (pb.Snapshot, error) {
 	var ss pb.Snapshot
 	if err := fileutil.GetFlagFileContent(dir, filename, &ss, fs); err != nil {
 		return pb.Snapshot{}, err
@@ -362,7 +360,7 @@ func checkMembers(old pb.Membership, members map[uint64]string) error {
 }
 
 func getProcessedSnapshotRecord(dstDir string,
-	old pb.Snapshot, members map[uint64]string, fs vfs.IFS) pb.Snapshot {
+	old pb.Snapshot, members map[uint64]string, fs vfs.FS) pb.Snapshot {
 	for _, file := range old.Files {
 		file.Filepath = fs.PathJoin(dstDir, fs.PathBase(file.Filepath))
 	}
@@ -413,7 +411,7 @@ func getProcessedSnapshotRecord(dstDir string,
 }
 
 func copySnapshot(ss pb.Snapshot,
-	srcDir string, dstDir string, fs vfs.IFS) error {
+	srcDir string, dstDir string, fs vfs.FS) error {
 	fp, err := getSnapshotFilepath(srcDir, fs)
 	if err != nil {
 		return err
@@ -432,7 +430,7 @@ func copySnapshot(ss pb.Snapshot,
 	return nil
 }
 
-func copyFile(src string, dst string, fs vfs.IFS) (err error) {
+func copyFile(src string, dst string, fs vfs.FS) (err error) {
 	in, err := fs.Open(src)
 	if err != nil {
 		return err
@@ -440,7 +438,7 @@ func copyFile(src string, dst string, fs vfs.IFS) (err error) {
 	defer func() {
 		err = firstError(err, in.Close())
 	}()
-	fi, err := in.Stat()
+	_, err = in.Stat()
 	if err != nil {
 		return err
 	}
@@ -451,14 +449,6 @@ func copyFile(src string, dst string, fs vfs.IFS) (err error) {
 	defer func() {
 		err = firstError(err, out.Close())
 	}()
-	if runtime.GOOS != "windows" {
-		of, ok := out.(*os.File)
-		if ok {
-			if err := of.Chmod(fi.Mode()); err != nil {
-				return err
-			}
-		}
-	}
 	if _, err = io.Copy(out, in); err != nil {
 		return err
 	}

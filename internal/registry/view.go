@@ -23,8 +23,8 @@ import (
 
 	"github.com/pierrec/lz4/v4"
 
-	"github.com/lni/dragonboat/v4/internal/raft"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/internal/raft"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 var (

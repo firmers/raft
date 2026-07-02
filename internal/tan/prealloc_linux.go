@@ -25,7 +25,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
 	"golang.org/x/sys/unix"
 )
 

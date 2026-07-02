@@ -22,7 +22,7 @@
 package tan
 
 import (
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
 )
 
 func prealloc(f vfs.File, size int64) error {

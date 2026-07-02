@@ -23,12 +23,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/hashicorp/memberlist"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/logger"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/logger"
 )
 
 var plog = logger.GetLogger("registry")

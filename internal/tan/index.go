@@ -21,7 +21,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 )
 
 var errCorruptIndexFile = errors.New("corrupt index file")

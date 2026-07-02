@@ -29,7 +29,7 @@ package statemachine
 import (
 	"io"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 )
 
 var (

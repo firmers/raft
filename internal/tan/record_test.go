@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/rand"
 )

@@ -21,13 +21,13 @@ import (
 	"github.com/lni/goutils/syncutil"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 func TestSnapshotJobCanBeCreatedInSavedMode(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	cfg := config.NodeHostConfig{}
 	transport := NewNOOPTransport(cfg, nil, nil)
 	c := newJob(context.Background(), 1, 1, 1, false, 201, transport, nil, fs)
@@ -35,7 +35,7 @@ func TestSnapshotJobCanBeCreatedInSavedMode(t *testing.T) {
 }
 
 func TestSnapshotJobCanBeCreatedInStreamingMode(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	cfg := config.NodeHostConfig{}
 	transport := NewNOOPTransport(cfg, nil, nil)
 	c := newJob(context.Background(), 1, 1, 1, true, 201, transport, nil, fs)
@@ -43,7 +43,7 @@ func TestSnapshotJobCanBeCreatedInStreamingMode(t *testing.T) {
 }
 
 func TestSendSavedSnapshotPutsAllChunksInCh(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	m := pb.Message{
 		Type: pb.InstallSnapshot,
 		Snapshot: pb.Snapshot{
@@ -61,7 +61,7 @@ func TestSendSavedSnapshotPutsAllChunksInCh(t *testing.T) {
 }
 
 func TestKeepSendingChunksUsingFailedJobWillNotBlock(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	cfg := config.NodeHostConfig{}
 	transport := NewNOOPTransport(cfg, nil, nil)
 	c := newJob(context.Background(), 1, 1, 1, true, 0, transport, nil, fs)
@@ -93,7 +93,7 @@ func TestKeepSendingChunksUsingFailedJobWillNotBlock(t *testing.T) {
 }
 
 func testSpecialChunkCanStopTheProcessLoop(t *testing.T,
-	tt uint64, experr error, fs vfs.IFS) {
+	tt uint64, experr error, fs vfs.FS) {
 	cfg := config.NodeHostConfig{}
 	transport := NewNOOPTransport(cfg, nil, nil)
 	c := newJob(context.Background(), 1, 1, 1, true, 0, transport, nil, fs)
@@ -115,12 +115,12 @@ func testSpecialChunkCanStopTheProcessLoop(t *testing.T,
 }
 
 func TestPoisonChunkCanStopTheProcessLoop(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testSpecialChunkCanStopTheProcessLoop(t,
 		pb.PoisonChunkCount, ErrStreamSnapshot, fs)
 }
 
 func TestLastChunkCanStopTheProcessLoop(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testSpecialChunkCanStopTheProcessLoop(t, pb.LastChunkCount, nil, fs)
 }

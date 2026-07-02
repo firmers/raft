@@ -20,18 +20,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/random"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/id"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/logger"
+	"github.com/firmers/raft/raftio"
+	"github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -72,7 +72,7 @@ var (
 )
 
 const (
-	flagFilename = "dragonboat.ds"
+	flagFilename = "raft.ds"
 	lockFilename = "LOCK"
 	idFilename   = "NODEHOST.ID"
 )
@@ -81,7 +81,7 @@ var firstError = utils.FirstError
 
 // Env is the server environment for NodeHost.
 type Env struct {
-	fs           vfs.IFS
+	fs           vfs.FS
 	randomSource random.Source
 	partitioner  IPartitioner
 	nhid         *id.UUID
@@ -91,7 +91,7 @@ type Env struct {
 }
 
 // NewEnv creates and returns a new server Env object.
-func NewEnv(nhConfig config.NodeHostConfig, fs vfs.IFS) (*Env, error) {
+func NewEnv(nhConfig config.NodeHostConfig, fs vfs.FS) (*Env, error) {
 	s := &Env{
 		randomSource: random.NewLockedRand(),
 		nhConfig:     nhConfig,
@@ -326,7 +326,7 @@ func (env *Env) markSnapshotDirRemoved(did uint64, shardID uint64,
 	return fileutil.MarkDirAsDeleted(dir, s, env.fs)
 }
 
-func removeSavedSnapshots(dir string, fs vfs.IFS) error {
+func removeSavedSnapshots(dir string, fs vfs.FS) error {
 	files, err := fs.List(dir)
 	if err != nil {
 		return err
@@ -394,7 +394,7 @@ func (env *Env) check(cfg config.NodeHostConfig,
 	se := func(s1 string, s2 string) bool {
 		return strings.EqualFold(strings.TrimSpace(s1), strings.TrimSpace(s2))
 	}
-	if _, err := env.fs.Stat(fp); vfs.IsNotExist(err) {
+	if _, err := env.fs.Stat(fp); errors.IsNotExist(err) {
 		if dbto {
 			return nil
 		}

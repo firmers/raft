@@ -21,9 +21,8 @@ package tan
 import (
 	"sort"
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/oserror"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/errors"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/lni/goutils/syncutil"
 )
 
@@ -50,7 +49,7 @@ func open(name string, dirname string, opts *Options) (*db, error) {
 		return nil, err
 	}
 	currentName := makeFilename(opts.FS, dirname, fileTypeCurrent, 0)
-	if _, err := opts.FS.Stat(currentName); oserror.IsNotExist(err) {
+	if _, err := opts.FS.Stat(currentName); errors.IsNotExist(err) {
 		// Create the DB if it did not already exist.
 		plog.Infof("%s creating a new tan db", d.id())
 		if err := d.mu.versions.create(dirname, opts, d.dataDir, &d.mu.Mutex); err != nil {

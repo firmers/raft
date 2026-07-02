@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
 )
 
 var (

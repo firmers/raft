@@ -15,11 +15,11 @@
 package tests
 
 import (
-	"github.com/cockroachdb/errors/errbase"
+	"github.com/firmers/raft/internal/errors"
 )
 
 type stackTracer interface {
-	StackTrace() errbase.StackTrace
+	StackTrace() errors.StackTrace
 }
 
 // HasStack returns a boolean value indicating whether the specified error has
@@ -31,5 +31,5 @@ func HasStack(err error) bool {
 	if _, ok := err.(stackTracer); ok {
 		return true
 	}
-	return HasStack(errbase.UnwrapOnce(err))
+	return HasStack(errors.UnwrapOnce(err))
 }

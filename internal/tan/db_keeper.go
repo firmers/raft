@@ -17,11 +17,10 @@ package tan
 import (
 	"fmt"
 
-	"github.com/cockroachdb/errors/oserror"
-
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
 )
 
 // dbKeeper keeps all tan db instances managed by a tan LogDB.
@@ -170,7 +169,7 @@ func (c *collection) getDB(shardID uint64, replicaID uint64) (*db, error) {
 }
 
 func (c *collection) prepareDir(dbdir string) error {
-	if _, err := c.fs.Stat(dbdir); oserror.IsNotExist(err) {
+	if _, err := c.fs.Stat(dbdir); errors.IsNotExist(err) {
 		if err := fileutil.MkdirAll(dbdir, c.fs); err != nil {
 			return err
 		}

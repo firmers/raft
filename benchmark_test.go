@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"crypto/rand"
@@ -26,20 +26,20 @@ import (
 	"github.com/lni/goutils/random"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/tests"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/internal/utils/dio"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/registry"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/tests"
+	"github.com/firmers/raft/internal/transport"
+	"github.com/firmers/raft/internal/utils/dio"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/logger"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 func benchmarkAllocs(b *testing.B, sz uint64) {
@@ -277,7 +277,7 @@ func BenchmarkFSyncLatency(b *testing.B) {
 	b.StopTimer()
 	l := logger.GetLogger("logdb")
 	l.SetLevel(logger.WARNING)
-	db := getNewTestDB("db", "lldb", vfs.DefaultFS)
+	db := getNewTestDB("db", "lldb", vfs.Default)
 	defer func() {
 		require.NoError(b, os.RemoveAll(rdbTestDirectory))
 	}()
@@ -312,7 +312,7 @@ func benchmarkSaveRaftState(b *testing.B, sz int) {
 	b.StopTimer()
 	l := logger.GetLogger("logdb")
 	l.SetLevel(logger.WARNING)
-	db := getNewTestDB("db", "lldb", vfs.DefaultFS)
+	db := getNewTestDB("db", "lldb", vfs.Default)
 	defer func() {
 		require.NoError(b, os.RemoveAll(rdbTestDirectory))
 	}()
@@ -420,20 +420,20 @@ func benchmarkTransport(b *testing.B, sz int) {
 	nhc1 := config.NodeHostConfig{
 		RaftAddress: addr1,
 		Expert: config.ExpertConfig{
-			FS: vfs.DefaultFS,
+			FS: vfs.Default,
 		},
 	}
-	env1, err := server.NewEnv(nhc1, vfs.DefaultFS)
+	env1, err := server.NewEnv(nhc1, vfs.Default)
 	if err != nil {
 		b.Fatalf("failed to new context %v", err)
 	}
 	nhc2 := config.NodeHostConfig{
 		RaftAddress: addr2,
 		Expert: config.ExpertConfig{
-			FS: vfs.DefaultFS,
+			FS: vfs.Default,
 		},
 	}
-	env2, err := server.NewEnv(nhc2, vfs.DefaultFS)
+	env2, err := server.NewEnv(nhc2, vfs.Default)
 	if err != nil {
 		b.Fatalf("failed to new context %v", err)
 	}
@@ -449,12 +449,12 @@ func benchmarkTransport(b *testing.B, sz int) {
 		expected: 128,
 	}
 	t1, err := transport.NewTransport(nhc1,
-		handler1, env1, nodes1, nil, &dummyTransportEvent{}, vfs.DefaultFS)
+		handler1, env1, nodes1, nil, &dummyTransportEvent{}, vfs.Default)
 	if err != nil {
 		b.Fatalf("failed to create transport %v", err)
 	}
 	t2, err := transport.NewTransport(nhc2,
-		handler2, env2, nodes2, nil, &dummyTransportEvent{}, vfs.DefaultFS)
+		handler2, env2, nodes2, nil, &dummyTransportEvent{}, vfs.Default)
 	if err != nil {
 		b.Fatalf("failed to create transport %v", err)
 	}
@@ -564,7 +564,7 @@ func benchmarkStateMachineStep(b *testing.B, sz int, noopSession bool) {
 	done := make(chan struct{})
 	config := config.Config{ShardID: 1, ReplicaID: 1}
 	nds := rsm.NewNativeSM(config, rsm.NewInMemStateMachine(ds), done)
-	smo := rsm.NewStateMachine(nds, nil, config, &testDummyNodeProxy{}, vfs.DefaultFS)
+	smo := rsm.NewStateMachine(nds, nil, config, &testDummyNodeProxy{}, vfs.Default)
 	idx := uint64(0)
 	var s *client.Session
 	if noopSession {

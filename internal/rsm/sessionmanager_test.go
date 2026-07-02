@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 func TestRegisteriAndUnregisterClient(t *testing.T) {

@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/raftio"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/raftio"
 )
 
 var (

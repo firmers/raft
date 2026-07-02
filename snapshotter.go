@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"strconv"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/logutil"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/utils/dio"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/utils/dio"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 func compressionType(ct pb.CompressionType) dio.CompressionType {
@@ -57,14 +57,14 @@ type snapshotter struct {
 	replicaID uint64
 	logdb     raftio.ILogDB
 	logReader *logdb.LogReader
-	fs        vfs.IFS
+	fs        vfs.FS
 }
 
 var _ rsm.ISnapshotter = (*snapshotter)(nil)
 
 func newSnapshotter(shardID uint64, replicaID uint64,
 	root server.SnapshotDirFunc, ldb raftio.ILogDB,
-	logReader *logdb.LogReader, fs vfs.IFS) *snapshotter {
+	logReader *logdb.LogReader, fs vfs.FS) *snapshotter {
 	return &snapshotter{
 		shardID:   shardID,
 		replicaID: replicaID,

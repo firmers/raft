@@ -17,7 +17,7 @@ package logdb
 import (
 	"testing"
 
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/stretchr/testify/require"
 )
 

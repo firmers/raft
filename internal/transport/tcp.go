@@ -25,14 +25,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/netutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -439,8 +439,8 @@ func (t *TCP) Start() error {
 			closeFn := func() {
 				once.Do(func() {
 					select {
-						case connCloseCh <- struct{}{}:
-						default:
+					case connCloseCh <- struct{}{}:
+					default:
 					}
 					if err := conn.Close(); err != nil {
 						plog.Errorf("failed to close the connection %v", err)

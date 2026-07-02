@@ -18,11 +18,10 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/cockroachdb/errors/oserror"
-
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 // getBootstrap returns saved bootstrap record. Bootstrap records are saved
@@ -33,7 +32,7 @@ func getBootstrap(fs vfs.FS, dirname string,
 	filename := makeBootstrapFilename(fs, dirname, shardID, replicaID, false)
 	f, err := fs.Open(filename)
 	if err != nil {
-		if oserror.IsNotExist(err) {
+		if errors.IsNotExist(err) {
 			return pb.Bootstrap{}, raftio.ErrNoBootstrapInfo
 		}
 		return pb.Bootstrap{}, err
@@ -85,7 +84,7 @@ func saveBootstrap(fs vfs.FS,
 func removeBootstrap(fs vfs.FS, dirname string, dataDir vfs.File,
 	shardID uint64, replicaID uint64) error {
 	fn := makeBootstrapFilename(fs, dirname, shardID, replicaID, false)
-	if _, err := fs.Stat(fn); oserror.IsNotExist(err) {
+	if _, err := fs.Stat(fn); errors.IsNotExist(err) {
 		return nil
 	}
 	if err := fs.RemoveAll(fn); err != nil {

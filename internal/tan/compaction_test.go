@@ -23,12 +23,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cockroachdb/errors/oserror"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 
-	"github.com/lni/dragonboat/v4/config"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/lni/goutils/leaktest"
-	"github.com/lni/vfs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -283,9 +283,9 @@ func TestScanObsoleteFiles(t *testing.T) {
 	require.NoError(t, f.Close())
 	runTanTest(t, nil, tf, fs)
 	_, err = fs.Stat(manifestFn)
-	require.True(t, oserror.IsNotExist(err))
+	require.True(t, errors.IsNotExist(err))
 	_, err = fs.Stat(logFn)
-	require.True(t, oserror.IsNotExist(err))
+	require.True(t, errors.IsNotExist(err))
 }
 
 func TestNodeIndexCompaction(t *testing.T) {

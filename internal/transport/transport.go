@@ -46,22 +46,22 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/netutil"
 	circuit "github.com/lni/goutils/netutil/rubyist/circuitbreaker"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/invariants"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	ct "github.com/lni/dragonboat/v4/plugin/chan"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/invariants"
+	"github.com/firmers/raft/internal/registry"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/logger"
+	ct "github.com/firmers/raft/plugin/chan"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 const (
@@ -184,7 +184,7 @@ type Transport struct {
 	msgHandler   IMessageHandler
 	resolver     registry.IResolver
 	trans        raftio.ITransport
-	fs           vfs.IFS
+	fs           vfs.FS
 	stopper      *syncutil.Stopper
 	dir          server.SnapshotDirFunc
 	env          *server.Env
@@ -202,7 +202,7 @@ var _ ITransport = (*Transport)(nil)
 func NewTransport(nhConfig config.NodeHostConfig,
 	handler IMessageHandler, env *server.Env, resolver registry.IResolver,
 	dir server.SnapshotDirFunc, sysEvents ITransportEvent,
-	fs vfs.IFS) (*Transport, error) {
+	fs vfs.FS) (*Transport, error) {
 	sourceID := nhConfig.RaftAddress
 	if nhConfig.NodeRegistryEnabled() {
 		sourceID = env.NodeHostID()

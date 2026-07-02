@@ -21,8 +21,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/lni/dragonboat/v4/client"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	sm "github.com/firmers/raft/statemachine"
 	"github.com/stretchr/testify/require"
 )
 

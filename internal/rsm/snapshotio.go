@@ -22,10 +22,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/vfs"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 // SSVersion is the snapshot version value type.
@@ -136,7 +136,7 @@ func getVersionedValidator(header pb.SnapshotHeader) (IVValidator, bool) {
 }
 
 // GetWitnessSnapshot returns the content of a witness snapshot.
-func GetWitnessSnapshot(fs vfs.IFS) (result []byte, err error) {
+func GetWitnessSnapshot(fs vfs.FS) (result []byte, err error) {
 	f, path, err := fileutil.TempFile("", "dragonboat-witness-snapshot", fs)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func GetWitnessSnapshot(fs vfs.IFS) (result []byte, err error) {
 type SnapshotWriter struct {
 	vw     IVWriter
 	file   vfs.File
-	fs     vfs.IFS
+	fs     vfs.FS
 	fp     string
 	ct     pb.CompressionType
 	closed bool
@@ -177,12 +177,12 @@ type SnapshotWriter struct {
 
 // NewSnapshotWriter creates a new snapshot writer instance.
 func NewSnapshotWriter(fp string,
-	ct pb.CompressionType, fs vfs.IFS) (*SnapshotWriter, error) {
+	ct pb.CompressionType, fs vfs.FS) (*SnapshotWriter, error) {
 	return newVersionedSnapshotWriter(fp, DefaultVersion, ct, fs)
 }
 
 func newVersionedSnapshotWriter(fp string,
-	v SSVersion, ct pb.CompressionType, fs vfs.IFS) (*SnapshotWriter, error) {
+	v SSVersion, ct pb.CompressionType, fs vfs.FS) (*SnapshotWriter, error) {
 	f, err := fs.Create(fp)
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func newVersionedSnapshotWriter(fp string,
 }
 
 func newSnapshotWriter(f vfs.File, fp string,
-	v SSVersion, ct pb.CompressionType, fs vfs.IFS) (*SnapshotWriter, error) {
+	v SSVersion, ct pb.CompressionType, fs vfs.FS) (*SnapshotWriter, error) {
 	dummy := make([]byte, HeaderSize)
 	if _, err := f.Write(dummy); err != nil {
 		return nil, err
@@ -281,7 +281,7 @@ type SnapshotReader struct {
 
 // NewSnapshotReader creates a new snapshot reader instance.
 func NewSnapshotReader(fp string,
-	fs vfs.IFS) (*SnapshotReader, pb.SnapshotHeader, error) {
+	fs vfs.FS) (*SnapshotReader, pb.SnapshotHeader, error) {
 	f, err := fs.Open(fp)
 	if err != nil {
 		return nil, pb.SnapshotHeader{}, err
@@ -422,7 +422,7 @@ func (v *SnapshotValidator) Validate() bool {
 
 // IsShrunkSnapshotFile returns a boolean flag indicating whether the
 // specified snapshot file is already shrunk.
-func IsShrunkSnapshotFile(fp string, fs vfs.IFS) (shrunk bool, err error) {
+func IsShrunkSnapshotFile(fp string, fs vfs.FS) (shrunk bool, err error) {
 	reader, _, err := NewSnapshotReader(fp, fs)
 	if err != nil {
 		return false, err
@@ -450,7 +450,7 @@ func IsShrunkSnapshotFile(fp string, fs vfs.IFS) (shrunk bool, err error) {
 	return false, nil
 }
 
-func mustInSameDir(fp string, newFp string, fs vfs.IFS) {
+func mustInSameDir(fp string, newFp string, fs vfs.FS) {
 	if fs.PathDir(fp) != fs.PathDir(newFp) {
 		plog.Panicf("not in the same dir, dir 1: %s, dir 2: %s",
 			fs.PathDir(fp), fs.PathDir(newFp))
@@ -459,7 +459,7 @@ func mustInSameDir(fp string, newFp string, fs vfs.IFS) {
 
 // ShrinkSnapshot shrinks the specified snapshot file and save the generated
 // shrunk version to the path specified by newFp.
-func ShrinkSnapshot(fp string, newFp string, fs vfs.IFS) (err error) {
+func ShrinkSnapshot(fp string, newFp string, fs vfs.FS) (err error) {
 	mustInSameDir(fp, newFp, fs)
 	reader, _, err := NewSnapshotReader(fp, fs)
 	if err != nil {
@@ -483,7 +483,7 @@ func ShrinkSnapshot(fp string, newFp string, fs vfs.IFS) (err error) {
 
 // ReplaceSnapshot replace the specified snapshot file with the shrunk
 // version atomically.
-func ReplaceSnapshot(newFp string, fp string, fs vfs.IFS) error {
+func ReplaceSnapshot(newFp string, fp string, fs vfs.FS) error {
 	mustInSameDir(fp, newFp, fs)
 	if err := fs.Rename(newFp, fp); err != nil {
 		return err

@@ -18,16 +18,17 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/leaktest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 func getTestChunk() []pb.Chunk {
@@ -62,25 +63,25 @@ func getTestChunk() []pb.Chunk {
 func hasSnapshotTempFile(cs *Chunk, c pb.Chunk) bool {
 	env := cs.getEnv(c)
 	fp := env.GetTempFilepath()
-	if _, err := cs.fs.Stat(fp); vfs.IsNotExist(err) {
+	if _, err := cs.fs.Stat(fp); errors.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
 func hasExternalFile(cs *Chunk,
-	c pb.Chunk, fn string, sz uint64, ifs vfs.IFS) bool {
+	c pb.Chunk, fn string, sz uint64, ifs vfs.FS) bool {
 	env := cs.getEnv(c)
 	efp := ifs.PathJoin(env.GetFinalDir(), fn)
 	fs, err := cs.fs.Stat(efp)
-	if vfs.IsNotExist(err) {
+	if errors.IsNotExist(err) {
 		return false
 	}
 	return uint64(fs.Size()) == sz
 }
 
 func runChunkTest(t *testing.T,
-	fn func(*testing.T, *Chunk, *testMessageHandler), fs vfs.IFS) {
+	fn func(*testing.T, *Chunk, *testMessageHandler), fs vfs.FS) {
 	defer func() {
 		if err := fs.RemoveAll(snapshotDir); err != nil {
 			t.Fatalf("%v", err)
@@ -143,7 +144,7 @@ func TestMaxSlotIsEnforced(t *testing.T) {
 		}
 		assert.Equal(t, count, len(chunks.tracked))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -160,7 +161,7 @@ func TestOutOfOrderChunkWillBeIgnored(t *testing.T) {
 		td = chunks.tracked[key]
 		assert.Equal(t, next+10, td.next)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -177,7 +178,7 @@ func TestChunkFromANewLeaderIsIgnored(t *testing.T) {
 		td = chunks.tracked[key]
 		assert.Equal(t, next, td.next)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -186,7 +187,7 @@ func TestNotTrackedChunkWillBeIgnored(t *testing.T) {
 		inputs := getTestChunk()
 		assert.Nil(t, chunks.record(inputs[1]))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -204,7 +205,7 @@ func TestGetOrCreateSnapshotLock(t *testing.T) {
 		assert.Equal(t, l1, ll)
 		assert.Equal(t, 3, len(chunks.locks))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -244,7 +245,7 @@ func TestAddFirstChunkRecordsTheSnapshotAndCreatesTheTempFile(t *testing.T) {
 		assert.Equal(t, inputs[0], recordedChunk.first)
 		assert.True(t, hasSnapshotTempFile(chunks, inputs[0]))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -263,7 +264,7 @@ func TestGcRemovesRecordAndTempFile(t *testing.T) {
 		assert.False(t, hasSnapshotTempFile(chunks, inputs[0]))
 		assert.Equal(t, uint64(0), handler.getSnapshotCount(100, 2))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -279,7 +280,7 @@ func TestReceivedCompleteChunkWillBeMergedIntoSnapshotFile(t *testing.T) {
 		assert.False(t, hasSnapshotTempFile(chunks, inputs[0]))
 		assert.Equal(t, uint64(1), handler.getSnapshotCount(100, 2))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -300,9 +301,9 @@ func TestChunkAreIgnoredWhenNodeIsRemoved(t *testing.T) {
 		}
 		tmpSnapDir := env.GetTempDir()
 		_, err := chunks.fs.Stat(tmpSnapDir)
-		assert.True(t, vfs.IsNotExist(err))
+		assert.True(t, errors.IsNotExist(err))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -322,9 +323,9 @@ func TestOutOfDateChunkCanBeHandled(t *testing.T) {
 		assert.Equal(t, uint64(0), handler.getSnapshotCount(100, 2))
 		tmpSnapDir := env.GetTempDir()
 		_, err := chunks.fs.Stat(tmpSnapDir)
-		assert.True(t, vfs.IsNotExist(err))
+		assert.True(t, errors.IsNotExist(err))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -350,7 +351,7 @@ func TestSignificantlyDelayedNonFirstChunkAreIgnored(t *testing.T) {
 		assert.False(t, hasSnapshotTempFile(chunks, inputs[0]))
 		assert.Equal(t, uint64(0), handler.getSnapshotCount(100, 2))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
@@ -394,12 +395,12 @@ func TestAddingFirstChunkAgainResetsTempFile(t *testing.T) {
 		assert.Equal(t, uint64(1), handler.getSnapshotCount(100, 2))
 		assert.True(t, checkTestSnapshotFile(chunks, inputs[0], settings.SnapshotHeaderSize*10))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
 func testSnapshotWithExternalFilesAreHandledByChunk(t *testing.T,
-	validate bool, snapshotCount uint64, fs vfs.IFS) {
+	validate bool, snapshotCount uint64, fs vfs.FS) {
 	fn := func(t *testing.T, chunks *Chunk, handler *testMessageHandler) {
 		chunks.validate = validate
 		sf1 := &pb.SnapshotFile{
@@ -452,7 +453,7 @@ func testSnapshotWithExternalFilesAreHandledByChunk(t *testing.T,
 }
 
 func TestSnapshotWithExternalFilesAreHandledByChunk(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testSnapshotWithExternalFilesAreHandledByChunk(t, true, 0, fs)
 	testSnapshotWithExternalFilesAreHandledByChunk(t, false, 1, fs)
 }
@@ -491,12 +492,12 @@ func TestWitnessSnapshotCanBeHandled(t *testing.T) {
 		}
 		assert.Equal(t, uint64(1), handler.getSnapshotCount(100, 2))
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }
 
 func TestSnapshotRecordWithoutExternalFilesCanBeSplitIntoChunk(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	ss := pb.Snapshot{
 		Filepath: "filepath.data",
 		FileSize: snapshotChunkSize*3 + 100,
@@ -542,7 +543,7 @@ func TestSnapshotRecordWithoutExternalFilesCanBeSplitIntoChunk(t *testing.T) {
 }
 
 func TestSnapshotRecordWithTwoExternalFilesCanBeSplitIntoChunk(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	sf1 := &pb.SnapshotFile{
 		Filepath: "/data/external1.data",
 		FileSize: 100,
@@ -645,6 +646,6 @@ func TestGetMessageFromChunk(t *testing.T) {
 		assert.Equal(t, chunks.fs.PathJoin("gtransport_test_data_safe_to_delete",
 			"snapshot-123-3", "snapshot-00000000000000C8", "external-file-2"), ss.Files[1].Filepath)
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runChunkTest(t, fn, fs)
 }

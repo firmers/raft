@@ -22,7 +22,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lni/vfs"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/stretchr/testify/require"
 )
 

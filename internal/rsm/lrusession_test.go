@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	sm "github.com/firmers/raft/statemachine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

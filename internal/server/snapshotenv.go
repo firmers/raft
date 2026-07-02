@@ -21,11 +21,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/fileutil"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -116,7 +116,7 @@ func getFinalDirName(rootDir string, index uint64) string {
 // SSEnv is the struct used to manage involved directories for taking or
 // receiving snapshots.
 type SSEnv struct {
-	fs vfs.IFS
+	fs vfs.FS
 	// rootDir is the parent of all snapshot tmp/final dirs for a specified
 	// raft node
 	rootDir  string
@@ -129,7 +129,7 @@ type SSEnv struct {
 // NewSSEnv creates and returns a new SSEnv instance.
 func NewSSEnv(f SnapshotDirFunc,
 	shardID uint64, replicaID uint64, index uint64,
-	from uint64, mode Mode, fs vfs.IFS) SSEnv {
+	from uint64, mode Mode, fs vfs.FS) SSEnv {
 	var tmpSuffix string
 	if mode == SnapshotMode {
 		tmpSuffix = genTmpDirSuffix
@@ -213,7 +213,7 @@ func (se *SSEnv) SaveSSMetadata(msg pb.Marshaler) error {
 func (se *SSEnv) HasFlagFile() bool {
 	fp := se.fs.PathJoin(se.finalDir, fileutil.SnapshotFlagFilename)
 	_, err := se.fs.Stat(fp)
-	return !vfs.IsNotExist(err)
+	return !errors.IsNotExist(err)
 }
 
 // RemoveFlagFile removes the flag file from the final directory.
@@ -257,7 +257,7 @@ func (se *SSEnv) removeDir(dir string) error {
 
 func (se *SSEnv) finalDirExists() bool {
 	_, err := se.fs.Stat(se.finalDir)
-	return !vfs.IsNotExist(err)
+	return !errors.IsNotExist(err)
 }
 
 func (se *SSEnv) renameToFinalDir() error {

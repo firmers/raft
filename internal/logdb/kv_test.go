@@ -22,19 +22,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/leaktest"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/logdb/kv"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/logdb/kv"
+	"github.com/firmers/raft/internal/settings"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 func TestKVCanBeCreatedAndClosed(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer leaktest.AfterTest(t)()
 	cfg := config.GetDefaultLogDBConfig()
 	kvs, err := newDefaultKVStore(cfg, nil, RDBTestDirectory,
@@ -45,7 +45,7 @@ func TestKVCanBeCreatedAndClosed(t *testing.T) {
 }
 
 func runKVTest(t *testing.T, tf func(t *testing.T, kvs kv.IKVStore),
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	defer leaktest.AfterTest(t)()
 	defer deleteTestDB(fs)
 	cfg := config.GetDefaultLogDBConfig()
@@ -76,7 +76,7 @@ func TestKVGetAndSet(t *testing.T) {
 		require.True(t, opcalled, "op func not called")
 		require.True(t, found, "failed to get value")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -100,7 +100,7 @@ func TestKVValueCanBeDeleted(t *testing.T) {
 		require.True(t, opcalled, "op func not called")
 		require.False(t, found, "failed to delete result")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -126,7 +126,7 @@ func TestKVWriteBatch(t *testing.T) {
 		require.True(t, opcalled, "op func not called")
 		require.True(t, found, "failed to get the result")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -148,7 +148,7 @@ func testKVIterateValue(t *testing.T,
 		require.NoError(t, err, "iterate value failed")
 		require.Equal(t, count, opcalled, "op called wrong number of times")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -173,7 +173,7 @@ func TestWriteBatchCanBeCleared(t *testing.T) {
 			})
 		require.NoError(t, err, "get value failed")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -212,7 +212,7 @@ func TestHasEntryRecord(t *testing.T) {
 		require.NoError(t, err, "hasEntryRecord failed")
 		require.True(t, has, "unexpected result")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
@@ -251,12 +251,12 @@ func TestEntriesCanBeRemovedFromKVStore(t *testing.T) {
 		require.NoError(t, err, "iterate value failed")
 		require.Equal(t, 80, count, "failed to get all key value pairs")
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	runKVTest(t, tf, fs)
 }
 
 func TestCompactionReleaseStorageSpace(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	deleteTestDB(fs)
 	defer deleteTestDB(fs)
 	maxIndex := uint64(1024 * 128)
@@ -306,7 +306,7 @@ func TestCompactionReleaseStorageSpace(t *testing.T) {
 var flagContent = "YYYY"
 var corruptedContent = "XXXX"
 
-func getDataFilePathList(dir string, wal bool, fs vfs.IFS) ([]string, error) {
+func getDataFilePathList(dir string, wal bool, fs vfs.FS) ([]string, error) {
 	elms, err := fs.List(dir)
 	if err != nil {
 		return nil, err
@@ -331,7 +331,7 @@ func getDataFilePathList(dir string, wal bool, fs vfs.IFS) ([]string, error) {
 	return result, nil
 }
 
-func cutDataFile(fp string, fs vfs.IFS) (bool, error) {
+func cutDataFile(fp string, fs vfs.FS) (bool, error) {
 	buf := bytes.NewBuffer(nil)
 	f, err := fs.Open(fp)
 	if err != nil {
@@ -361,7 +361,7 @@ func cutDataFile(fp string, fs vfs.IFS) (bool, error) {
 	return true, nil
 }
 
-func modifyDataFile(fp string, fs vfs.IFS) (bool, error) {
+func modifyDataFile(fp string, fs vfs.FS) (bool, error) {
 	tmpFp := fs.PathJoin(fs.PathDir(fp), "tmp")
 	if err := func() error {
 		idx := int64(0)
@@ -407,7 +407,7 @@ func modifyDataFile(fp string, fs vfs.IFS) (bool, error) {
 	return true, nil
 }
 
-func testDiskCorruptionIsHandled(t *testing.T, wal bool, cut bool, fs vfs.IFS) {
+func testDiskCorruptionIsHandled(t *testing.T, wal bool, cut bool, fs vfs.FS) {
 	deleteTestDB(fs)
 	defer deleteTestDB(fs)
 	cfg := config.GetDefaultLogDBConfig()
@@ -498,17 +498,17 @@ func testDiskCorruptionIsHandled(t *testing.T, wal bool, cut bool, fs vfs.IFS) {
 }
 
 func TestTailCorruptionIsIgnored(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testDiskCorruptionIsHandled(t, true, true, fs)
 }
 
 func TestSSTCorruptionIsHandled(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testDiskCorruptionIsHandled(t, false, false, fs)
 }
 
 // see testDiskCorruptionIsHandled's comments for more details
 func TestWALCorruptionIsHandled(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testDiskCorruptionIsHandled(t, true, false, fs)
 }

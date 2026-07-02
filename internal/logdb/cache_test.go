@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 	"github.com/stretchr/testify/require"
 )
 

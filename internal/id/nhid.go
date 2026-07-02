@@ -15,10 +15,10 @@
 package id
 
 import (
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/google/uuid"
 
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 // IsNodeHostID returns a boolean value indicating whether the specified value

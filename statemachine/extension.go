@@ -15,7 +15,7 @@
 package statemachine
 
 import (
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 )
 
 var (

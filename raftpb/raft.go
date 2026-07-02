@@ -22,10 +22,10 @@ import (
 
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/logger"
 )
 
 var (
@@ -182,7 +182,7 @@ func (b *Bootstrap) Validate(nodes map[uint64]string,
 	return valid
 }
 
-func checkFileSize(path string, size uint64, fs vfs.IFS) {
+func checkFileSize(path string, size uint64, fs vfs.FS) {
 	var er func(format string, args ...interface{})
 	if panicOnSizeMismatch {
 		er = plog.Panicf
@@ -199,7 +199,7 @@ func checkFileSize(path string, size uint64, fs vfs.IFS) {
 }
 
 // Validate validates the snapshot instance.
-func (snapshot *Snapshot) Validate(fs vfs.IFS) bool {
+func (snapshot *Snapshot) Validate(fs vfs.FS) bool {
 	if len(snapshot.Filepath) == 0 || snapshot.FileSize == 0 {
 		return false
 	}

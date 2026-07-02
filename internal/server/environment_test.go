@@ -18,16 +18,16 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/id"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/raftio"
+	"github.com/firmers/raft/raftpb"
 )
 
 const (
@@ -48,7 +48,7 @@ func getTestNodeHostConfig() config.NodeHostConfig {
 }
 
 func TestCheckNodeHostDirWorksWhenEverythingMatches(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	defer func() {
 		if err := fs.RemoveAll(singleNodeHostTestDir); err != nil {
 			t.Fatalf("%v", err)
@@ -94,7 +94,7 @@ func TestCheckNodeHostDirWorksWhenEverythingMatches(t *testing.T) {
 }
 
 func TestRaftAddressIsAllowedToChangeWhenRequested(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	c := getTestNodeHostConfig()
 	defer func() {
 		if err := fs.RemoveAll(singleNodeHostTestDir); err != nil {
@@ -138,7 +138,7 @@ func TestRaftAddressIsAllowedToChangeWhenRequested(t *testing.T) {
 func testNodeHostDirectoryDetectsMismatches(t *testing.T,
 	addr string, hostname string, binVer uint32, name string,
 	hardHashMismatch bool, addressByNodeHostID bool, expErr error,
-	fs vfs.IFS) {
+	fs vfs.FS) {
 	c := getTestNodeHostConfig()
 	defer func() {
 		if err := fs.RemoveAll(singleNodeHostTestDir); err != nil {
@@ -178,49 +178,49 @@ func testNodeHostDirectoryDetectsMismatches(t *testing.T,
 }
 
 func TestCanDetectMismatchedHostname(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		testAddress, "incorrect-hostname", raftio.LogDBBinVersion,
 		testLogDBName, false, false, ErrHostnameChanged, fs)
 }
 
 func TestCanDetectMismatchedLogDBName(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		testAddress, "", raftio.LogDBBinVersion,
 		"incorrect name", false, false, ErrLogDBType, fs)
 }
 
 func TestCanDetectMismatchedBinVer(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		testAddress, "", raftio.LogDBBinVersion+1,
 		testLogDBName, false, false, ErrIncompatibleData, fs)
 }
 
 func TestCanDetectMismatchedAddress(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		"invalid:12345", "", raftio.LogDBBinVersion,
 		testLogDBName, false, false, ErrNotOwner, fs)
 }
 
 func TestCanDetectMismatchedHardHash(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		testAddress, "", raftio.LogDBBinVersion,
 		testLogDBName, true, false, ErrHardSettingsChanged, fs)
 }
 
 func TestCanDetectMismatchedDefaultNodeRegistryEnabled(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	testNodeHostDirectoryDetectsMismatches(t,
 		testAddress, "", raftio.LogDBBinVersion,
 		testLogDBName, false, true, ErrDefaultNodeRegistryEnabledChanged, fs)
 }
 
 func TestLockFileCanBeLockedAndUnlocked(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	c := getTestNodeHostConfig()
 	defer func() {
 		if err := fs.RemoveAll(singleNodeHostTestDir); err != nil {
@@ -239,7 +239,7 @@ func TestLockFileCanBeLockedAndUnlocked(t *testing.T) {
 }
 
 func TestNodeHostIDCanBeGenerated(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	err := fs.RemoveAll(singleNodeHostTestDir)
 	require.NoError(t, err)
 	err = fs.MkdirAll(singleNodeHostTestDir, 0755)
@@ -258,7 +258,7 @@ func TestNodeHostIDCanBeGenerated(t *testing.T) {
 }
 
 func TestPrepareNodeHostIDWillReportNodeHostIDChange(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	err := fs.RemoveAll(singleNodeHostTestDir)
 	require.NoError(t, err)
 	err = fs.MkdirAll(singleNodeHostTestDir, 0755)
@@ -285,7 +285,7 @@ func TestPrepareNodeHostIDWillReportNodeHostIDChange(t *testing.T) {
 }
 
 func TestRemoveSavedSnapshots(t *testing.T) {
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	err := fs.RemoveAll(singleNodeHostTestDir)
 	require.NoError(t, err)
 	err = fs.MkdirAll(singleNodeHostTestDir, 0755)
@@ -325,7 +325,7 @@ func TestWALDirCanBeSet(t *testing.T) {
 		NodeHostDir: "d1",
 		WALDir:      walDir,
 	}
-	fs := vfs.GetTestFS()
+	fs := vfs.NewStrictMem()
 	c, err := NewEnv(nhConfig, fs)
 	require.NoError(t, err, "failed to get environment")
 	defer func() {

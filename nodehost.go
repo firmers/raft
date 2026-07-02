@@ -34,7 +34,7 @@ membership change requests to add or remove nodes from selected Raft shard.
 
 User applications can leverage the power of the Raft protocol by implementing
 the IStateMachine or IOnDiskStateMachine component, as defined in
-github.com/lni/dragonboat/v4/statemachine. Known as user state machines, each
+github.com/firmers/raft/statemachine. Known as user state machines, each
 IStateMachine or IOnDiskStateMachine instance is in charge of updating, querying
 and snapshotting application data with minimum exposure to the Raft protocol
 itself.
@@ -53,7 +53,7 @@ its deadline, it faces the risk of having the same proposal committed and
 applied twice into the user state machine. Dragonboat prevents this by
 implementing the client session concept described in Diego Ongaro's PhD thesis.
 */
-package dragonboat // github.com/lni/dragonboat/v4
+package raft // github.com/firmers/raft
 
 import (
 	"context"
@@ -64,25 +64,25 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
 	"github.com/lni/goutils/logutil"
 	"github.com/lni/goutils/syncutil"
 
-	"github.com/lni/dragonboat/v4/client"
-	"github.com/lni/dragonboat/v4/config"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/invariants"
-	"github.com/lni/dragonboat/v4/internal/logdb"
-	"github.com/lni/dragonboat/v4/internal/registry"
-	"github.com/lni/dragonboat/v4/internal/rsm"
-	"github.com/lni/dragonboat/v4/internal/server"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/transport"
-	"github.com/lni/dragonboat/v4/internal/utils"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
-	sm "github.com/lni/dragonboat/v4/statemachine"
+	"github.com/firmers/raft/client"
+	"github.com/firmers/raft/config"
+	"github.com/firmers/raft/internal/id"
+	"github.com/firmers/raft/internal/invariants"
+	"github.com/firmers/raft/internal/logdb"
+	"github.com/firmers/raft/internal/registry"
+	"github.com/firmers/raft/internal/rsm"
+	"github.com/firmers/raft/internal/server"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/internal/transport"
+	"github.com/firmers/raft/internal/utils"
+	"github.com/firmers/raft/internal/vfs"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
+	sm "github.com/firmers/raft/statemachine"
 )
 
 const (
@@ -280,7 +280,7 @@ type NodeHost struct {
 	}
 	registry     INodeHostRegistry
 	nodes        raftio.INodeRegistry
-	fs           vfs.IFS
+	fs           vfs.FS
 	transport    transport.ITransport
 	id           *id.UUID
 	stopper      *syncutil.Stopper

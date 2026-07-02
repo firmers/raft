@@ -26,17 +26,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cockroachdb/errors"
+	"github.com/firmers/raft/internal/errors"
+	"github.com/firmers/raft/internal/vfs"
 	"github.com/lni/goutils/netutil"
 	"github.com/lni/goutils/stringutil"
 
-	"github.com/lni/dragonboat/v4/internal/fileutil"
-	"github.com/lni/dragonboat/v4/internal/id"
-	"github.com/lni/dragonboat/v4/internal/settings"
-	"github.com/lni/dragonboat/v4/internal/vfs"
-	"github.com/lni/dragonboat/v4/logger"
-	"github.com/lni/dragonboat/v4/raftio"
-	pb "github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/internal/fileutil"
+	"github.com/firmers/raft/internal/id"
+	"github.com/firmers/raft/internal/settings"
+	"github.com/firmers/raft/logger"
+	"github.com/firmers/raft/raftio"
+	pb "github.com/firmers/raft/raftpb"
 )
 
 var (
@@ -474,9 +474,6 @@ type NodeHostConfig struct {
 	Expert ExpertConfig
 }
 
-// IFS is the filesystem interface used by tests.
-type IFS = vfs.IFS
-
 // TargetValidator is the validtor used to validate user specified target values.
 type TargetValidator func(string) bool
 
@@ -624,7 +621,7 @@ func (l *defaultLogDB) Create(nhConfig NodeHostConfig,
 }
 
 func (l *defaultLogDB) Name() string {
-	fs := vfs.DefaultFS
+	fs := vfs.Default
 	dir, err := fileutil.TempDir("", "dragonboat-logdb-test", fs)
 	if err != nil {
 		panic(err)
@@ -666,7 +663,7 @@ func (c *NodeHostConfig) Prepare() error {
 		}
 	}
 	if c.Expert.FS == nil {
-		c.Expert.FS = vfs.DefaultFS
+		c.Expert.FS = vfs.Default
 	}
 	if c.Expert.Engine.IsEmpty() {
 		plog.Infof("using default EngineConfig")
@@ -953,7 +950,7 @@ type ExpertConfig struct {
 	// disk usages.
 	LogDB LogDBConfig
 	// FS is the filesystem instance used in tests.
-	FS IFS
+	FS vfs.FS
 	// TestGossipProbeInterval defines the probe interval used by the gossip
 	// service in tests.
 	TestGossipProbeInterval time.Duration

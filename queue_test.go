@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dragonboat
+package raft
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lni/dragonboat/v4/raftio"
-	"github.com/lni/dragonboat/v4/raftpb"
+	"github.com/firmers/raft/raftio"
+	"github.com/firmers/raft/raftpb"
 )
 
 func TestEntryQueueCanBeCreated(t *testing.T) {
